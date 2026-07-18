@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Ascendra — AI interview-prep platform" description="Hi-fi clickable prototype: readiness dashboard, resume→skill-gap analysis, roadmap, daily drills, adaptive mock interviews, progress tracking, onboarding, and a dockable chat agent — built on Nocturne." -->
+<helmet>
+<script src="./ds-base.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<style>
+:root{--asc-max:1180px}
+button{font-family:inherit}
+.asc-nav-hover:hover{background:var(--color-neutral-900)!important}
+.asc-nav-active{background:var(--color-accent-900)!important;color:var(--color-accent-200)!important}
+.asc-card-hover{transition:box-shadow .14s,transform .14s}
+.asc-card-hover:hover{box-shadow:0 0 0 1px var(--color-neutral-600),0 10px 28px rgba(0,0,0,.45)}
+.asc-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;font-size:12.5px;border-radius:999px;border:1px solid var(--color-divider);background:transparent;color:var(--color-neutral-200);cursor:pointer}
+.asc-chip:hover{border-color:var(--color-accent);color:var(--color-accent)}
+.asc-chip-on{border-color:var(--color-accent);color:var(--color-accent);background:var(--color-accent-900)}
+.asc-dot{width:22px;height:22px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;border:1px solid var(--color-neutral-700);color:var(--color-neutral-500)}
+.asc-dot-done{border-color:var(--color-accent);color:var(--color-accent-200);background:var(--color-accent-900)}
+.asc-dot-active{border-color:var(--color-accent);color:var(--color-accent)}
+.asc-chat{position:fixed;right:22px;bottom:22px;z-index:60;width:380px;height:520px;display:flex;flex-direction:column;background:var(--color-surface);border-radius:14px;box-shadow:0 0 0 1px var(--color-neutral-700),0 24px 60px rgba(0,0,0,.6);overflow:hidden;transition:width .16s,height .16s}
+.asc-chat-exp{width:min(560px,92vw);height:min(720px,84vh)}
+.asc-link{background:none;border:none;color:var(--color-accent);cursor:pointer;font:inherit;padding:0;text-decoration:underline}
+.asc-input-err{border-color:#e5484d!important}
+.asc-field-err{color:#e5484d;font-size:11.5px;margin-top:5px}
+:root[data-theme="light"]{
+  --color-bg:#f5f6fb;--color-surface:#ffffff;--color-text:#1b1d2a;
+  --color-accent:#6b5fd0;--color-accent-2:#7b74c4;
+  --color-divider:color-mix(in srgb,#1b1d2a 13%,transparent);
+  --color-neutral-100:#1b1d2a;--color-neutral-200:#2b2e3f;--color-neutral-300:#3c4052;--color-neutral-400:#565b70;--color-neutral-500:#71768a;--color-neutral-600:#9297aa;--color-neutral-700:#c6cad8;--color-neutral-800:#e2e5ef;--color-neutral-900:#eef0f7;
+  --color-accent-100:#2e2769;--color-accent-200:#4a3fa0;--color-accent-300:#6055c0;--color-accent-400:#7d72d4;--color-accent-500:#968ae0;--color-accent-600:#b5abfc;--color-accent-700:#cdc7fb;--color-accent-800:#e7e4fe;--color-accent-900:#f0eeff;
+  --color-accent-2-100:#2e2b52;--color-accent-2-200:#48446f;--color-accent-2-300:#615c8f;--color-accent-2-400:#7f79ad;--color-accent-2-500:#9690c9;--color-accent-2-600:#b5afe8;--color-accent-2-700:#cecaf0;--color-accent-2-800:#e5e3f8;--color-accent-2-900:#f0eff9;
+  --shadow-sm:0 0 0 1px color-mix(in srgb,#1b1d2a 10%,transparent);
+  --shadow-md:0 0 0 1px color-mix(in srgb,#1b1d2a 9%,transparent),0 6px 18px rgba(24,26,45,.10);
+  --shadow-lg:0 0 0 1px color-mix(in srgb,#1b1d2a 11%,transparent),0 16px 40px rgba(24,26,45,.16);
+}
+:root[data-theme="light"] .asc-card-hover:hover{box-shadow:0 0 0 1px var(--color-neutral-700),0 10px 28px rgba(24,26,45,.14)!important}
+:root[data-theme="light"] .asc-chat{box-shadow:0 0 0 1px var(--color-neutral-700),0 24px 60px rgba(24,26,45,.22)}
+</style>
+</helmet>
+
+<!-- ░░ AUTH GATE ░░ -->
+<sc-if value="{{ isAuthGate }}" hint-placeholder-val="{{ true }}">
+  <div style="min-height:100vh;background:var(--color-bg);color:var(--color-text);display:flex;align-items:center;justify-content:center;padding:24px">
+    <div style="width:100%;max-width:392px;position:relative">
+      <button class="btn btn-icon btn-secondary" onClick="{{ toggleTheme }}" title="{{ themeTitle }}" style="position:absolute;top:-4px;right:0"><i class="ph {{ themeIcon }}"></i></button>
+      <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:24px">
+        <div style="width:30px;height:30px;border-radius:8px;background:var(--color-accent);display:flex;align-items:center;justify-content:center;color:var(--color-bg)"><i class="ph ph-compass" style="font-size:18px"></i></div>
+        <span style="font-family:var(--font-heading);font-weight:600;font-size:21px;letter-spacing:-.01em">Ascendra</span>
+      </div>
+      <div class="card elev-md" style="padding:28px">
+        <sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+          <div>
+            <h1 style="font-size:23px;margin:0 0 4px">Welcome back</h1>
+            <p class="text-muted" style="margin:0 0 20px;font-size:13.5px">Sign in to continue your interview prep.</p>
+            <div class="field"><label>Email</label><input class="input {{ errEmailCls }}" type="email" placeholder="priya@example.com" value="{{ email }}" onInput="{{ onEmail }}"><sc-if value="{{ hasErrEmail }}" hint-placeholder-val="{{ false }}"><div class="asc-field-err">{{ errEmail }}</div></sc-if></div>
+            <div class="field" style="margin-top:12px"><label>Password</label><input class="input {{ errPasswordCls }}" type="password" placeholder="••••••••" value="{{ password }}" onInput="{{ onPassword }}"><sc-if value="{{ hasErrPassword }}" hint-placeholder-val="{{ false }}"><div class="asc-field-err">{{ errPassword }}</div></sc-if></div>
+            <button class="btn btn-primary btn-block" style="margin-top:20px" onClick="{{ doLogin }}">Sign in</button>
+            <p class="text-muted" style="text-align:center;font-size:13px;margin:16px 0 0">No account yet? <button class="asc-link" onClick="{{ showRegister }}" style="white-space:nowrap">Create one</button></p>
+          </div>
+        </sc-if>
+        <sc-if value="{{ isRegister }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <h1 style="font-size:23px;margin:0 0 4px">Create your account</h1>
+            <p class="text-muted" style="margin:0 0 20px;font-size:13.5px">Sign up and we'll baseline you with a resume-based diagnostic.</p>
+            <div class="field"><label>Full name</label><input class="input {{ errNameCls }}" placeholder="Priya Menon" value="{{ name }}" onInput="{{ onName }}"><sc-if value="{{ hasErrName }}" hint-placeholder-val="{{ false }}"><div class="asc-field-err">{{ errName }}</div></sc-if></div>
+            <div class="field" style="margin-top:12px"><label>Email</label><input class="input {{ errEmailCls }}" type="email" placeholder="priya@example.com" value="{{ email }}" onInput="{{ onEmail }}"><sc-if value="{{ hasErrEmail }}" hint-placeholder-val="{{ false }}"><div class="asc-field-err">{{ errEmail }}</div></sc-if></div>
+            <div class="field" style="margin-top:12px"><label>Password</label><input class="input {{ errPasswordCls }}" type="password" placeholder="At least 8 characters" value="{{ password }}" onInput="{{ onPassword }}"><sc-if value="{{ hasErrPassword }}" hint-placeholder-val="{{ false }}"><div class="asc-field-err">{{ errPassword }}</div></sc-if></div>
+            <button class="btn btn-primary btn-block" style="margin-top:20px" onClick="{{ doRegister }}">Create account</button>
+            <p class="text-muted" style="text-align:center;font-size:13px;margin:16px 0 0">Already have an account? <button class="asc-link" onClick="{{ showLogin }}">Sign in</button></p>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isAuthed }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;background:var(--color-bg);color:var(--color-text);display:flex">
+
+  <!-- ░░ SIDEBAR ░░ -->
+  <aside style="width:236px;flex:none;min-height:100vh;background:var(--color-surface);box-shadow:1px 0 0 var(--color-divider);display:flex;flex-direction:column;padding:20px 14px;position:sticky;top:0;align-self:flex-start">
+    <div style="display:flex;align-items:center;gap:9px;padding:0 8px 20px">
+      <div style="width:26px;height:26px;border-radius:7px;background:var(--color-accent);display:flex;align-items:center;justify-content:center;color:var(--color-bg)"><i class="ph ph-compass" style="font-size:16px"></i></div>
+      <span style="font-family:var(--font-heading);font-weight:600;font-size:18px;letter-spacing:-.01em">Ascendra</span>
+    </div>
+
+    <nav style="display:flex;flex-direction:column;gap:3px">
+      <button class="asc-nav-hover {{ navHomeCls }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:9px 12px;border-radius:8px;border:none;background:transparent;color:var(--color-neutral-300);font:inherit;font-size:14px;cursor:pointer;text-align:left;transition:background .12s" onClick="{{ goHome }}"><i class="ph ph-squares-four" style="font-size:18px"></i>Overview</button>
+      <button class="asc-nav-hover {{ navGapsCls }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:9px 12px;border-radius:8px;border:none;background:transparent;color:var(--color-neutral-300);font:inherit;font-size:14px;cursor:pointer;text-align:left;transition:background .12s" onClick="{{ goGaps }}"><i class="ph ph-chart-bar" style="font-size:18px"></i>Skill Gaps</button>
+      <button class="asc-nav-hover {{ navRoadmapCls }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:9px 12px;border-radius:8px;border:none;background:transparent;color:var(--color-neutral-300);font:inherit;font-size:14px;cursor:pointer;text-align:left;transition:background .12s" onClick="{{ goRoadmap }}"><i class="ph ph-path" style="font-size:18px"></i>Roadmap</button>
+      <button class="asc-nav-hover {{ navInterviewCls }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:9px 12px;border-radius:8px;border:none;background:transparent;color:var(--color-neutral-300);font:inherit;font-size:14px;cursor:pointer;text-align:left;transition:background .12s" onClick="{{ goInterview }}"><i class="ph ph-microphone-stage" style="font-size:18px"></i>Mock Interview</button>
+      <button class="asc-nav-hover {{ navDrillCls }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:9px 12px;border-radius:8px;border:none;background:transparent;color:var(--color-neutral-300);font:inherit;font-size:14px;cursor:pointer;text-align:left;transition:background .12s" onClick="{{ goDrill }}"><i class="ph ph-sun-horizon" style="font-size:18px"></i>Daily Drill</button>
+      <button class="asc-nav-hover {{ navProgressCls }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:9px 12px;border-radius:8px;border:none;background:transparent;color:var(--color-neutral-300);font:inherit;font-size:14px;cursor:pointer;text-align:left;transition:background .12s" onClick="{{ goProgress }}"><i class="ph ph-trend-up" style="font-size:18px"></i>Progress</button>
+    </nav>
+
+    <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+      <button class="asc-chip" style="justify-content:center;width:100%" onClick="{{ goOnboarding }}"><i class="ph ph-arrow-clockwise"></i>Re-run diagnostic</button>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 8px;border-radius:10px;background:var(--color-neutral-900)">
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--color-accent-800);color:var(--color-accent-100);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">PM</div>
+        <div style="line-height:1.25;flex:1"><div style="font-size:13px">Priya Menon</div><div style="font-size:11px;color:var(--color-neutral-500)">Pro plan</div></div>
+        <button class="btn btn-icon" onClick="{{ logout }}" title="Log out"><i class="ph ph-sign-out"></i></button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ░░ MAIN ░░ -->
+  <main style="flex:1;min-width:0;padding:26px 34px 90px">
+   <div style="max-width:var(--asc-max);margin:0 auto">
+
+    <!-- top bar -->
+    <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-bottom:26px">
+      <button class="btn btn-icon btn-secondary" onClick="{{ toggleTheme }}" title="{{ themeTitle }}"><i class="ph {{ themeIcon }}"></i></button>
+      <button class="asc-chip" onClick="{{ goDrill }}"><i class="ph ph-sun-horizon"></i>Today's 10</button>
+      <button class="asc-chip" onClick="{{ openChat }}"><i class="ph ph-sparkle" style="color:var(--color-accent)"></i>Ask Ascendra</button>
+    </div>
+
+    <!-- ═══ HOME / OVERVIEW ═══ -->
+    <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+     <div>
+      <div style="margin-bottom:22px">
+        <h1 style="font-size:32px;margin:0 0 4px">{{ greeting }}</h1>
+        <p class="text-muted" style="margin:0;font-size:14px">{{ dateStr }}</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:16px">
+        <!-- readiness card -->
+        <div class="card elev-sm asc-card-hover" style="padding:22px;display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center">
+          <div style="position:relative;width:132px;height:132px">
+            <svg width="132" height="132" viewBox="0 0 132 132" style="transform:rotate(-90deg)">
+              <circle cx="66" cy="66" r="54" fill="none" stroke="var(--color-neutral-900)" stroke-width="11"></circle>
+              <circle cx="66" cy="66" r="54" fill="none" stroke="var(--color-accent)" stroke-width="11" stroke-linecap="round" stroke-dasharray="{{ ringC }}" stroke-dashoffset="{{ ringOffset }}"></circle>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <span style="font-family:var(--font-heading);font-size:38px;font-weight:600;line-height:1">{{ role.readiness }}</span>
+              <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-500)">Readiness</span>
+            </div>
+          </div>
+          <div>
+            <div class="card-kicker">Interview readiness</div>
+            <div style="font-size:15px;margin:4px 0 10px">On track toward your target readiness of <strong>{{ role.target }}</strong>. Keep the daily loop going to close your gaps.</div>
+            <div style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--color-accent-200)"><i class="ph ph-arrow-up-right"></i>{{ role.delta }}</div>
+            <div style="margin-top:16px;display:flex;gap:8px">
+              <button class="btn btn-primary" onClick="{{ goInterview }}">Start a mock loop</button>
+              <button class="btn btn-secondary" onClick="{{ goRoadmap }}">View roadmap</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- today's drill -->
+        <div class="card elev-sm asc-card-hover" style="padding:20px;justify-content:space-between">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><i class="ph ph-sun-horizon" style="font-size:18px;color:var(--color-accent)"></i><span class="card-title">Today's 10 questions</span></div>
+            <p class="card-body" style="opacity:.75">Ten questions picked from your weakest areas — concurrency, test design and system design. ~15 min.</p>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+              <span class="tag tag-accent">Concurrency ×3</span><span class="tag tag-neutral">Test Strategy ×3</span><span class="tag tag-neutral">System Design ×2</span><span class="tag tag-neutral">Behavioral ×2</span>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-block" onClick="{{ goDrill }}"><i class="ph ph-play"></i>Begin drill</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:16px;margin-top:16px">
+        <!-- competency breakdown -->
+        <div class="card elev-sm" style="padding:20px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <span class="card-title">Competency breakdown</span>
+            <button class="btn btn-ghost" onClick="{{ goGaps }}">Full report →</button>
+          </div>
+          <sc-for list="{{ comps }}" as="c" hint-placeholder-count="5">
+            <div style="margin-bottom:15px">
+              <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:7px"><span>{{ c.name }}</span><span class="text-muted">{{ c.levelLabel }}</span></div>
+              <div style="position:relative;height:10px;border-radius:5px;background:var(--color-neutral-900);overflow:hidden"><svg width="100%" height="10" viewBox="0 0 100 10" preserveAspectRatio="none" style="display:block"><rect x="0" y="0" width="{{ c.level }}" height="10" fill="var(--color-accent)"></rect><rect x="{{ c.tickLeft }}" y="0" width="0.6" height="10" fill="var(--color-neutral-400)"></rect></svg></div>
+            </div>
+          </sc-for>
+          <p class="text-muted" style="font-size:11px;margin:4px 0 0">Marker shows the target level for this role.</p>
+        </div>
+
+        <!-- right rail -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card elev-sm" style="padding:18px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><i class="ph ph-brain" style="font-size:17px;color:var(--color-accent)"></i><span class="card-title" style="font-size:15px">Focus areas</span></div>
+            <sc-for list="{{ weak }}" as="w" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:9px;padding:7px 0;font-size:13px;box-shadow:inset 0 -1px 0 var(--color-divider)"><i class="ph ph-dot-outline" style="color:var(--color-accent)"></i>{{ w }}</div>
+            </sc-for>
+            <p class="text-muted" style="font-size:11px;margin:10px 0 0">Carried forward from your last sessions.</p>
+          </div>
+          <div class="card elev-sm asc-card-hover" style="padding:18px">
+            <div class="card-kicker">Next up</div>
+            <div class="card-title" style="font-size:16px">Mock loop · Friday 9:00</div>
+            <p class="card-body" style="opacity:.72">4 rounds: coding, test design, system design, behavioral.</p>
+            <button class="btn btn-secondary" style="align-self:flex-start" onClick="{{ goInterview }}">Preview session</button>
+          </div>
+        </div>
+      </div>
+     </div>
+    </sc-if>
+
+    <!-- ═══ SKILL GAPS ═══ -->
+    <sc-if value="{{ isGaps }}" hint-placeholder-val="{{ false }}">
+     <div>
+      <h1 style="font-size:28px;margin:0 0 4px">Skill-gap analysis</h1>
+      <p class="text-muted" style="margin:0 0 22px;font-size:14px">Parsed from <strong>Priya_Menon_Resume.pdf</strong> and matched against your target-level requirements.</p>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+        <div class="card elev-sm" style="padding:16px"><div class="card-kicker">Matched skills</div><div style="font-size:30px;font-family:var(--font-heading)">14</div><p class="text-muted" style="font-size:12px;margin:0">Evidenced in your resume</p></div>
+        <div class="card elev-sm" style="padding:16px"><div class="card-kicker">Gaps identified</div><div style="font-size:30px;font-family:var(--font-heading)">{{ gapCount }}</div><p class="text-muted" style="font-size:12px;margin:0">Below target for this role</p></div>
+        <div class="card elev-sm" style="padding:16px"><div class="card-kicker">Est. time to target</div><div style="font-size:30px;font-family:var(--font-heading)">9<span style="font-size:15px;color:var(--color-neutral-500)"> wks</span></div><p class="text-muted" style="font-size:12px;margin:0">At current pace</p></div>
+      </div>
+
+      <div class="card elev-sm" style="padding:20px;margin-bottom:16px">
+        <span class="card-title">Competency vs. target</span>
+        <div style="margin-top:16px">
+          <sc-for list="{{ comps }}" as="c" hint-placeholder-count="5">
+            <div style="margin-bottom:15px">
+              <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:7px"><span>{{ c.name }}</span><span class="text-muted">{{ c.levelLabel }}</span></div>
+              <div style="position:relative;height:10px;border-radius:5px;background:var(--color-neutral-900);overflow:hidden"><svg width="100%" height="10" viewBox="0 0 100 10" preserveAspectRatio="none" style="display:block"><rect x="0" y="0" width="{{ c.level }}" height="10" fill="var(--color-accent)"></rect><rect x="{{ c.tickLeft }}" y="0" width="0.6" height="10" fill="var(--color-neutral-400)"></rect></svg></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card elev-sm" style="padding:20px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><i class="ph ph-check-circle" style="font-size:17px;color:var(--color-accent)"></i><span class="card-title" style="font-size:15px">Strengths on your resume</span></div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px"><span class="tag tag-accent">Selenium / Playwright</span><span class="tag tag-accent">API test automation</span><span class="tag tag-accent">CI/CD (Jenkins)</span><span class="tag tag-accent">Java · Python</span><span class="tag tag-accent">Agile QA lead</span></div>
+        </div>
+        <div class="card elev-sm" style="padding:20px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><i class="ph ph-warning-circle" style="font-size:17px;color:var(--color-neutral-400)"></i><span class="card-title" style="font-size:15px">Priority gaps to close</span></div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px"><sc-for list="{{ gapTags }}" as="g" hint-placeholder-count="5"><span class="tag tag-outline">{{ g }}</span></sc-for></div>
+          <p class="text-muted" style="font-size:11px;margin:12px 0 0">Updated automatically as mock interviews surface new weaknesses.</p>
+          <button class="btn btn-primary" style="align-self:flex-start;margin-top:12px" onClick="{{ goRoadmap }}">Generate roadmap from gaps</button>
+        </div>
+      </div>
+     </div>
+    </sc-if>
+
+    <!-- ═══ ROADMAP ═══ -->
+    <sc-if value="{{ isRoadmap }}" hint-placeholder-val="{{ false }}">
+     <div>
+      <h1 style="font-size:28px;margin:0 0 4px">Personalized roadmap</h1>
+      <p class="text-muted" style="margin:0 0 24px;font-size:14px">Built from your skill gaps. New phases are appended as mock interviews surface weaknesses — nothing is removed.</p>
+      <div style="position:relative;padding-left:6px">
+        <sc-for list="{{ phases }}" as="p" hint-placeholder-count="4">
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:16px;padding-bottom:8px">
+            <div style="display:flex;flex-direction:column;align-items:center">
+              <sc-if value="{{ p.isDone }}" hint-placeholder-val="{{ false }}"><div style="width:12px;height:12px;border-radius:50%;flex:none;margin-top:5px;background:var(--color-neutral-500)"></div></sc-if>
+              <sc-if value="{{ p.isActive }}" hint-placeholder-val="{{ true }}"><div style="width:12px;height:12px;border-radius:50%;flex:none;margin-top:5px;background:var(--color-accent)"></div></sc-if>
+              <sc-if value="{{ p.isNext }}" hint-placeholder-val="{{ false }}"><div style="width:12px;height:12px;border-radius:50%;flex:none;margin-top:5px;background:transparent;box-shadow:inset 0 0 0 1.5px var(--color-neutral-600)"></div></sc-if>
+              <div style="width:2px;flex:1;background:var(--color-divider);margin:6px 0"></div>
+            </div>
+            <div class="card elev-sm asc-card-hover" style="padding:18px;margin-bottom:16px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                <div><div class="card-title" style="font-size:16px">{{ p.name }}</div><div class="text-muted" style="font-size:12px">{{ p.weeks }}</div></div>
+                <span class="{{ p.tagClass }}">{{ p.status }}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:2px;margin-top:12px">
+                <sc-for list="{{ p.modules }}" as="m" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:9px;font-size:13px;padding:6px 0;box-shadow:inset 0 -1px 0 var(--color-divider)"><i class="ph ph-book-open-text" style="color:var(--color-neutral-500)"></i>{{ m }}</div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+     </div>
+    </sc-if>
+
+    <!-- ═══ MOCK INTERVIEW ═══ -->
+    <sc-if value="{{ isInterview }}" hint-placeholder-val="{{ false }}">
+     <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <h1 style="font-size:28px;margin:0">Adaptive mock interview</h1>
+        <span class="tag tag-outline">Round {{ ivNum }} of {{ ivTotal }}</span>
+      </div>
+      <p class="text-muted" style="margin:0 0 16px;font-size:14px">Questions adapt to how you answer. Speak or type — you'll get scored feedback at the end.</p>
+
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <span class="text-muted" style="font-size:12px">Level</span>
+        <button class="asc-chip {{ segAllCls }}" onClick="{{ setLevelAll }}">All</button>
+        <button class="asc-chip {{ segBegCls }}" onClick="{{ setLevelBeg }}">Beginner</button>
+        <button class="asc-chip {{ segIntCls }}" onClick="{{ setLevelInt }}">Intermediate</button>
+        <button class="asc-chip {{ segAdvCls }}" onClick="{{ setLevelAdv }}">Advanced</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:20px;font-size:12.5px;color:var(--color-neutral-400)"><i class="ph ph-target" style="color:var(--color-accent)"></i><span>Drawn from your current skill gaps:</span><sc-for list="{{ ivAreas }}" as="a" hint-placeholder-count="4"><span class="tag tag-neutral">{{ a }}</span></sc-for></div>
+
+      <sc-if value="{{ ivActive }}" hint-placeholder-val="{{ true }}">
+       <div>
+      <sc-for list="{{ ivPrev }}" as="q" hint-placeholder-count="0">
+        <div class="card" style="padding:16px;margin-bottom:10px;opacity:.7">
+          <div style="display:flex;gap:8px;margin-bottom:6px"><span class="tag tag-neutral">{{ q.area }}</span><span class="tag tag-outline">{{ q.level }}</span><span class="tag tag-accent" style="margin-left:auto">Answered</span></div>
+          <div style="font-size:14px">{{ q.q }}</div>
+        </div>
+      </sc-for>
+
+      <div class="card elev-md" style="padding:22px">
+        <div style="display:flex;gap:8px;margin-bottom:12px"><span class="tag tag-neutral">{{ iv.area }}</span><span class="tag tag-outline">{{ iv.level }}</span></div>
+        <div style="display:flex;gap:12px;margin-bottom:16px">
+          <div style="width:34px;height:34px;flex:none;border-radius:50%;background:var(--color-accent-800);display:flex;align-items:center;justify-content:center"><i class="ph ph-microphone-stage" style="color:var(--color-accent-100)"></i></div>
+          <div style="font-size:17px;line-height:1.5;padding-top:4px">{{ iv.q }}</div>
+        </div>
+        <div class="field"><label>Your answer</label><textarea class="input" placeholder="Structure your answer… (the interviewer follows up based on what you say)"></textarea></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:14px">
+          <button class="btn btn-secondary"><i class="ph ph-microphone"></i>Record</button>
+          <button class="btn btn-primary" style="margin-left:auto" onClick="{{ nextIv }}">{{ ivBtnLabel }}<i class="ph ph-arrow-right"></i></button>
+        </div>
+      </div>
+       </div>
+      </sc-if>
+
+      <sc-if value="{{ ivComplete }}" hint-placeholder-val="{{ false }}">
+        <div class="card elev-md" style="padding:24px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><span class="tag tag-accent">Session scored · 3.4 / 5</span><span class="text-muted" style="font-size:12px">Readiness +4</span></div>
+          <h3 style="font-size:21px;margin:0 0 10px">Nice work — here's what changed</h3>
+          <p style="font-size:14px;margin:0 0 16px;max-width:640px">Strong on flaky-test triage and coverage trade-offs. Two new weaknesses surfaced under the advanced system-design questions — they've been folded into your plan.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div style="padding:15px;border-radius:10px;background:var(--color-neutral-900)"><div class="card-kicker">New skill gaps added</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px"><span class="tag tag-outline">Rate-limiter partitions</span><span class="tag tag-outline">Impact metrics</span></div></div>
+            <div style="padding:15px;border-radius:10px;background:var(--color-neutral-900)"><div class="card-kicker">Roadmap updated</div><div style="font-size:13px;margin-top:9px;display:flex;align-items:center;gap:8px"><i class="ph ph-plus-circle" style="color:var(--color-accent)"></i>Phase 5 appended — existing phases kept</div></div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap"><button class="btn btn-primary" onClick="{{ goRoadmap }}">View updated roadmap</button><button class="btn btn-secondary" onClick="{{ goGaps }}">See skill gaps</button><button class="btn btn-ghost" onClick="{{ restartIv }}">New session</button></div>
+        </div>
+      </sc-if>
+     </div>
+    </sc-if>
+
+    <!-- ═══ DAILY DRILL ═══ -->
+    <sc-if value="{{ isDrill }}" hint-placeholder-val="{{ false }}">
+     <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <h1 style="font-size:28px;margin:0">Today's drill</h1>
+        <span class="tag tag-outline">{{ drillProgress }}</span>
+      </div>
+      <p class="text-muted" style="margin:0 0 22px;font-size:14px">Ten short questions from your weakest areas, delivered every morning. Answers feed back into your readiness score.</p>
+
+      <div style="display:grid;grid-template-columns:64px 1fr;gap:20px">
+        <!-- stepper -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <sc-for list="{{ drill }}" as="d" hint-placeholder-count="10">
+            <div class="asc-dot {{ d.cls }}">{{ d.num }}</div>
+          </sc-for>
+        </div>
+        <!-- active question -->
+        <div>
+          <div class="card elev-md" style="padding:22px">
+            <span class="tag tag-accent" style="align-self:flex-start">{{ drillActive.area }}</span>
+            <div style="font-size:18px;line-height:1.5;margin:12px 0 4px">{{ drillActive.q }}</div>
+            <div class="field" style="margin-top:8px"><textarea class="input" placeholder="Type your answer…"></textarea></div>
+
+            <sc-if value="{{ drillDone }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:16px;padding:16px;border-radius:10px;background:var(--color-accent-900);box-shadow:inset 0 0 0 1px var(--color-accent-700)">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span class="tag tag-accent">Scored 7 / 10</span><span class="text-muted" style="font-size:12px">Noted for tomorrow's set</span></div>
+                <p style="font-size:13.5px;margin:0 0 8px"><strong style="color:var(--color-accent-200)">Strong:</strong> you named the right isolation boundary and gave a concrete reproduction path.</p>
+                <p style="font-size:13.5px;margin:0"><strong style="color:var(--color-accent-200)">Improve:</strong> tie the test back to a failure mode — what breaks in production if this isn't caught? Add a load dimension.</p>
+              </div>
+            </sc-if>
+
+            <div style="display:flex;gap:10px;margin-top:16px">
+              <sc-if value="{{ drillDone }}" hint-placeholder-val="{{ true }}"><button class="btn btn-primary" onClick="{{ submitDrill }}">Submit answer</button></sc-if>
+              <sc-if value="{{ drillDone }}" hint-placeholder-val="{{ false }}"><button class="btn btn-primary" onClick="{{ nextDrill }}">Next question →</button></sc-if>
+              <button class="btn btn-ghost">Skip</button>
+            </div>
+          </div>
+        </div>
+      </div>
+     </div>
+    </sc-if>
+
+    <!-- ═══ PROGRESS ═══ -->
+    <sc-if value="{{ isProgress }}" hint-placeholder-val="{{ false }}">
+     <div>
+      <h1 style="font-size:28px;margin:0 0 4px">Progress</h1>
+      <p class="text-muted" style="margin:0 0 22px;font-size:14px">Readiness over the last five months.</p>
+
+      <div class="card elev-sm" style="padding:22px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px"><span class="card-title">Readiness trend</span><span style="font-size:13px;color:var(--color-accent-200)"><i class="ph ph-arrow-up-right"></i> +46 pts since March</span></div>
+        <svg viewBox="0 0 560 200" style="width:100%;height:auto;overflow:visible">
+          <line x1="8" y1="45" x2="560" y2="45" stroke="var(--color-divider)"></line>
+          <line x1="8" y1="95" x2="560" y2="95" stroke="var(--color-divider)"></line>
+          <line x1="8" y1="145" x2="560" y2="145" stroke="var(--color-divider)"></line>
+          <polygon points="{{ chartArea }}" fill="var(--color-accent-900)" opacity="0.5"></polygon>
+          <polyline points="{{ chartPts }}" fill="none" stroke="var(--color-accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline>
+        </svg>
+        <div style="display:flex;justify-content:space-between;margin-top:6px">
+          <sc-for list="{{ months }}" as="mo" hint-placeholder-count="5"><span style="font-size:11px;color:var(--color-neutral-500)">{{ mo.m }}</span></sc-for>
+        </div>
+      </div>
+
+      <div class="card elev-sm" style="padding:20px">
+        <span class="card-title" style="margin-bottom:8px">Session history</span>
+        <table class="table">
+          <thead><tr><th>Date</th><th>Session</th><th>Focus</th><th>Score</th></tr></thead>
+          <tbody>
+            <sc-for list="{{ history }}" as="h" hint-placeholder-count="4">
+              <tr><td>{{ h.date }}</td><td>{{ h.kind }}</td><td><span class="text-muted">{{ h.focus }}</span></td><td>{{ h.score }}</td></tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+     </div>
+    </sc-if>
+
+    <!-- ═══ ONBOARDING ═══ -->
+    <sc-if value="{{ isOnboarding }}" hint-placeholder-val="{{ false }}">
+     <div style="max-width:640px;margin:0 auto;padding-top:10px">
+      <div style="display:flex;gap:8px;margin-bottom:26px">
+        <div style="flex:1;height:4px;border-radius:2px;background:var(--color-accent)"></div>
+        <sc-if value="{{ onb0 }}" hint-placeholder-val="{{ false }}"><div style="flex:1;height:4px;border-radius:2px;background:var(--color-neutral-800)"></div><div style="flex:1;height:4px;border-radius:2px;background:var(--color-neutral-800)"></div></sc-if>
+        <sc-if value="{{ onb1 }}" hint-placeholder-val="{{ false }}"><div style="flex:1;height:4px;border-radius:2px;background:var(--color-accent)"></div><div style="flex:1;height:4px;border-radius:2px;background:var(--color-neutral-800)"></div></sc-if>
+        <sc-if value="{{ onb2 }}" hint-placeholder-val="{{ false }}"><div style="flex:1;height:4px;border-radius:2px;background:var(--color-accent)"></div><div style="flex:1;height:4px;border-radius:2px;background:var(--color-accent)"></div></sc-if>
+      </div>
+
+      <sc-if value="{{ onb0 }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div class="card-kicker">Step 1 of 3</div>
+          <h1 style="font-size:28px;margin:2px 0 6px">Upload your resume</h1>
+          <p class="text-muted" style="margin:0 0 20px;font-size:14px">We'll parse it, extract your skills, and build a diagnostic test to baseline your readiness.</p>
+          <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:44px;border-radius:14px;border:1.5px dashed var(--color-neutral-700);background:var(--color-neutral-900);cursor:pointer;text-align:center">
+            <i class="ph ph-file-arrow-up" style="font-size:34px;color:var(--color-accent)"></i>
+            <div style="font-size:15px">Drop your resume here <span class="text-muted">or click to browse</span></div>
+            <div class="text-muted" style="font-size:12px">PDF or DOCX · up to 10 MB</div>
+          </label>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:14px;padding:12px 14px;border-radius:10px;background:var(--color-surface);box-shadow:var(--shadow-sm)">
+            <i class="ph ph-file-pdf" style="font-size:20px;color:var(--color-accent)"></i>
+            <div style="flex:1"><div style="font-size:13px">Priya_Menon_Resume.pdf</div><div class="text-muted" style="font-size:11px">Uploaded · 214 KB</div></div>
+            <i class="ph ph-check-circle" style="font-size:18px;color:var(--color-accent)"></i>
+          </div>
+          <button class="btn btn-primary btn-block" style="margin-top:20px" onClick="{{ onbNext }}">Continue</button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ onb1 }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div class="card-kicker">Step 2 of 3</div>
+          <h1 style="font-size:28px;margin:2px 0 6px">Take your diagnostic mock test</h1>
+          <p class="text-muted" style="margin:0 0 16px;font-size:14px">From the skills in your resume we assembled these <strong style="color:var(--color-accent-200)">50 questions</strong>. You don't have to take it now — but your roadmap and skill-gap report can't be curated until you do.</p>
+          <div class="card elev-sm" style="padding:0;margin-bottom:14px;overflow:hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:15px 18px;box-shadow:inset 0 -1px 0 var(--color-divider)"><span class="card-title" style="font-size:15px">All 50 questions</span><span class="tag tag-accent">~40 min</span></div>
+            <div style="max-height:320px;overflow-y:auto">
+              <sc-for list="{{ diagQuestions }}" as="q" hint-placeholder-count="8">
+                <div style="display:flex;gap:12px;padding:11px 18px;box-shadow:inset 0 -1px 0 var(--color-divider)">
+                  <span style="flex:none;width:24px;font-size:12px;color:var(--color-neutral-500);padding-top:2px">{{ q.n }}</span>
+                  <div style="flex:1">
+                    <div style="font-size:13.5px;line-height:1.45">{{ q.q }}</div>
+                    <div style="display:flex;gap:6px;margin-top:6px"><span class="tag tag-neutral">{{ q.area }}</span><span class="tag tag-outline">{{ q.level }}</span></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;padding:12px 14px;border-radius:10px;background:var(--color-accent-900);box-shadow:inset 0 0 0 1px var(--color-accent-700);margin-bottom:16px;font-size:13px"><i class="ph ph-info" style="color:var(--color-accent);font-size:16px"></i>Complete this diagnostic to curate your roadmap and skill-gap report.</div>
+          <div style="display:flex;gap:10px"><button class="btn btn-secondary" onClick="{{ onbBack }}">Back</button><button class="btn btn-secondary" onClick="{{ skipDiag }}">I'll take it later</button><button class="btn btn-primary" style="flex:1" onClick="{{ takeDiag }}"><i class="ph ph-play"></i>Take diagnostic now</button></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ onb2 }}" hint-placeholder-val="{{ false }}">
+       <div>
+        <sc-if value="{{ diagTaken }}" hint-placeholder-val="{{ true }}">
+          <div style="text-align:center;padding-top:8px">
+            <div style="width:64px;height:64px;margin:0 auto 18px;border-radius:50%;background:var(--color-accent-900);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px var(--color-accent-700)"><i class="ph ph-check-circle" style="font-size:30px;color:var(--color-accent)"></i></div>
+            <div class="card-kicker">Step 3 of 3 · Plan curated</div>
+            <h1 style="font-size:28px;margin:2px 0 8px">Your plan is ready</h1>
+            <p class="text-muted" style="margin:0 auto 22px;font-size:14px;max-width:460px">From your 50-question diagnostic we scored 14 matching skills and {{ gapCount }} gaps, and built your roadmap. Starting readiness <strong style="color:var(--color-accent-200)">68</strong>.</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left;margin:0 auto 22px;max-width:540px">
+              <div class="card elev-sm" style="padding:15px"><div class="card-kicker">Skill gaps identified</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px"><sc-for list="{{ gapTags }}" as="g" hint-placeholder-count="5"><span class="tag tag-outline">{{ g }}</span></sc-for></div></div>
+              <div class="card elev-sm" style="padding:15px"><div class="card-kicker">Roadmap created</div><div style="margin-top:9px;display:flex;flex-direction:column;gap:5px"><sc-for list="{{ phases }}" as="p" hint-placeholder-count="4"><span style="font-size:12.5px;display:flex;align-items:center;gap:7px"><i class="ph ph-dot-outline" style="color:var(--color-accent)"></i>{{ p.name }}</span></sc-for></div></div>
+            </div>
+            <button class="btn btn-primary" onClick="{{ onbFinish }}">Go to my dashboard</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ diagNotTaken }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align:center;padding-top:20px">
+            <div style="width:64px;height:64px;margin:0 auto 18px;border-radius:50%;background:var(--color-neutral-900);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px var(--color-neutral-700)"><i class="ph ph-lock-simple" style="font-size:28px;color:var(--color-neutral-400)"></i></div>
+            <div class="card-kicker">Step 3 of 3</div>
+            <h1 style="font-size:28px;margin:2px 0 8px">Your plan isn't curated yet</h1>
+            <p class="text-muted" style="margin:0 auto 22px;font-size:14px;max-width:460px">We can't build your roadmap or skill-gap report until you complete the 50-question diagnostic.</p>
+            <div style="display:flex;gap:10px;justify-content:center"><button class="btn btn-secondary" onClick="{{ onbBack }}">Back to the test</button><button class="btn btn-primary" onClick="{{ takeDiag }}"><i class="ph ph-play"></i>Take diagnostic now</button></div>
+          </div>
+        </sc-if>
+       </div>
+      </sc-if>
+     </div>
+    </sc-if>
+
+    <!-- ═══ DIAGNOSTIC TEST TAKER ═══ -->
+    <sc-if value="{{ isDiagTest }}" hint-placeholder-val="{{ false }}">
+     <div style="max-width:720px;margin:0 auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px">
+        <h1 style="font-size:26px;margin:0">Diagnostic test</h1>
+        <button class="btn btn-ghost" onClick="{{ exitDiag }}"><i class="ph ph-x"></i>Save &amp; exit</button>
+      </div>
+      <p class="text-muted" style="margin:0 0 18px;font-size:14px">Answer in your own words — there's no timer. Your responses baseline your readiness and curate your plan.</p>
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <div style="flex:1;height:8px;border-radius:4px;background:var(--color-neutral-900);overflow:hidden">{{ diagBar }}</div>
+        <span class="text-muted" style="font-size:12.5px;white-space:nowrap">{{ diagQNum }} / {{ diagTotal }}</span>
+      </div>
+
+      <div class="card elev-md" style="padding:24px">
+        <div style="display:flex;gap:8px;margin-bottom:14px"><span class="tag tag-neutral">{{ diagActive.area }}</span><span class="tag tag-outline">{{ diagActive.level }}</span></div>
+        <div style="font-size:18px;line-height:1.5;margin-bottom:12px">{{ diagActive.q }}</div>
+        <div class="field"><textarea class="input" placeholder="Type your answer…"></textarea></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:16px">
+          <sc-if value="{{ diagHasPrev }}" hint-placeholder-val="{{ false }}"><button class="btn btn-secondary" onClick="{{ prevDiagQ }}"><i class="ph ph-arrow-left"></i>Previous</button></sc-if>
+          <button class="btn btn-ghost" onClick="{{ nextDiagQ }}">Skip</button>
+          <sc-if value="{{ diagNotLast }}" hint-placeholder-val="{{ true }}"><button class="btn btn-primary" style="margin-left:auto" onClick="{{ nextDiagQ }}">Save &amp; next<i class="ph ph-arrow-right"></i></button></sc-if>
+          <sc-if value="{{ diagAtLast }}" hint-placeholder-val="{{ false }}"><button class="btn btn-primary" style="margin-left:auto" onClick="{{ finishDiag }}"><i class="ph ph-check"></i>Finish &amp; curate plan</button></sc-if>
+        </div>
+      </div>
+     </div>
+    </sc-if>
+
+   </div>
+  </main>
+</div>
+</sc-if>
+
+<!-- ░░ CHAT LAUNCHER ░░ -->
+<sc-if value="{{ chatOpen }}" hint-placeholder-val="{{ true }}">
+  <button onClick="{{ openChat }}" style="position:fixed;right:22px;bottom:22px;z-index:55;display:flex;align-items:center;gap:9px;padding:12px 18px;border-radius:999px;border:1px solid var(--color-accent);background:var(--color-surface);color:var(--color-accent);cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.5);font-size:14px">
+    <i class="ph ph-sparkle" style="font-size:18px"></i>Ask Ascendra
+  </button>
+</sc-if>
+
+<!-- ░░ CHAT PANEL ░░ -->
+<sc-if value="{{ chatOpen }}" hint-placeholder-val="{{ false }}">
+  <div class="asc-chat {{ chatExpCls }}">
+    <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;box-shadow:inset 0 -1px 0 var(--color-divider)">
+      <div style="width:28px;height:28px;border-radius:8px;background:var(--color-accent);display:flex;align-items:center;justify-content:center;color:var(--color-bg)"><i class="ph ph-sparkle"></i></div>
+      <div style="flex:1"><div style="font-size:14px;font-weight:500">Ascendra guide</div><div style="font-size:11px;color:var(--color-accent-200)">● Online · knows your plan</div></div>
+      <button class="btn btn-icon" onClick="{{ toggleExpand }}" title="Expand"><i class="ph ph-arrows-out"></i></button>
+      <button class="btn btn-icon" onClick="{{ closeChat }}" title="Close"><i class="ph ph-x"></i></button>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px">
+      <div style="align-self:flex-start;max-width:88%;padding:11px 14px;border-radius:14px 14px 14px 4px;background:var(--color-neutral-900);font-size:13.5px;line-height:1.5">Morning, Priya. Your readiness is <strong style="color:var(--color-accent-200)">68</strong> — up 6 this week. Today's 10 questions target concurrency and test design, your two weakest areas. Want to start?</div>
+      <div style="align-self:flex-end;max-width:88%;padding:11px 14px;border-radius:14px 14px 4px 14px;background:var(--color-accent-800);color:var(--color-accent-100);font-size:13.5px;line-height:1.5">What should I focus on before my next mock loop?</div>
+      <div style="align-self:flex-start;max-width:88%;padding:11px 14px;border-radius:14px 14px 14px 4px;background:var(--color-neutral-900);font-size:13.5px;line-height:1.5">System design is your biggest gap (54/80). I'd do the <strong>Distributed testing at scale</strong> module next, then a mock loop Friday. I've pinned it to the top of your roadmap.</div>
+    </div>
+
+    <div style="padding:12px 14px;box-shadow:inset 0 1px 0 var(--color-divider)">
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="asc-chip" onClick="{{ goDrill }}">Start today's drill</button>
+        <button class="asc-chip" onClick="{{ goGaps }}">Explain my weakest area</button>
+        <button class="asc-chip" onClick="{{ goInterview }}">Schedule a mock</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="input" placeholder="Ask anything about your prep…">
+        <button class="btn btn-primary btn-icon" style="flex:none"><i class="ph ph-paper-plane-right"></i></button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:860}}">
+class Component extends DCLogic {
+  state = {
+    theme: this.readTheme(),
+    authed: false,
+    authScreen: 'login',
+    form: { name: '', email: '', password: '' },
+    errors: {},
+    screen: 'home',
+    chatOpen: false,
+    chatExpanded: false,
+    drillIdx: 0,
+    drillDone: false,
+    ivIdx: 0,
+    ivLevel: 'all',
+    ivComplete: false,
+    onbStep: 0,
+    diagIdx: 0,
+    diagTaken: false,
+    extraGaps: [],
+    extraPhases: [],
+  };
+
+  PROFILE = {
+    readiness: 68, delta: '+6 pts this week', target: 85,
+    comps: [
+      { name: 'Coding & DSA', level: 72, target: 85 },
+      { name: 'Test Strategy & Automation', level: 63, target: 88 },
+      { name: 'System Design', level: 54, target: 80 },
+      { name: 'CS Fundamentals', level: 66, target: 78 },
+      { name: 'Behavioral & Communication', level: 70, target: 82 },
+    ],
+    weak: ['Concurrency & thread safety', 'Distributed system trade-offs', 'STAR structure in behavioral answers', 'Test design for edge cases'],
+    gapTags: ['Distributed systems', 'System design depth', 'Concurrency', 'Scale-testing', 'Behavioral depth'],
+  };
+
+  PHASES = [
+    { name: 'Phase 1 · Foundations', weeks: 'Weeks 1–3', status: 'Complete', state: 'done',
+      modules: ['DSA refresher', 'Language & tooling baseline', 'Resume-mapped diagnostic test'] },
+    { name: 'Phase 2 · Test Engineering Depth', weeks: 'Weeks 4–7', status: 'In progress', state: 'active',
+      modules: ['Test strategy & the test pyramid', 'Automation framework design', 'Concurrency & flaky-test debugging'] },
+    { name: 'Phase 3 · Distributed Systems & Design', weeks: 'Weeks 8–11', status: 'Upcoming', state: 'next',
+      modules: ['Distributed testing at scale', 'Design for testability', 'Observability & fault injection'] },
+    { name: 'Phase 4 · Interview Simulation', weeks: 'Weeks 12–14', status: 'Upcoming', state: 'next',
+      modules: ['Behavioral leadership loop', 'Full mock loop ×3', 'Readiness gate ≥ 85'] },
+  ];
+
+  DRILL = [
+    { area: 'Test Strategy', q: 'Design a test strategy for a payment service handling 50k requests/second. What layers matter most?' },
+    { area: 'Concurrency', q: 'What is a race condition? Give a concrete example and describe a test that reliably catches it.' },
+    { area: 'System Design', q: 'How would you verify correctness of a distributed rate limiter under network partitions?' },
+    { area: 'Automation', q: 'Your CI has 4% flaky tests. Walk through how you would detect, quarantine, and fix them.' },
+    { area: 'Behavioral', q: 'Tell me about a time you disagreed with a senior engineer on quality. (Structure with STAR.)' },
+    { area: 'Coding', q: 'Given a stream of events, design a sliding-window rate counter. Discuss time/space complexity.' },
+    { area: 'Edge Cases', q: 'Enumerate edge cases you would test for a file-upload API accepting up to 5 GB.' },
+    { area: 'CS Fundamentals', q: 'Explain how a hash map degrades to O(n) and how you would test for that in practice.' },
+    { area: 'System Design', q: 'How do you test idempotency of a retryable “create order” endpoint?' },
+    { area: 'Behavioral', q: 'Describe a bug that reached production. What did you change in your process afterward?' },
+  ];
+
+  // Mock-interview questions are always drawn from the candidate's skill-gap areas, tagged by level.
+  IVPOOL = [
+    { area: 'Test Strategy', level: 'Beginner', q: 'Explain the test pyramid and where an SDET should concentrate effort.' },
+    { area: 'Concurrency', level: 'Beginner', q: 'What is a race condition? Give a concrete example and how you would surface it in a test.' },
+    { area: 'Behavioral', level: 'Beginner', q: 'Tell me about a time you caught a critical bug before release.' },
+    { area: 'Test Strategy', level: 'Intermediate', q: 'How do you detect and eliminate flaky tests across a large CI pipeline?' },
+    { area: 'System Design', level: 'Intermediate', q: 'How would you test idempotency of a retryable “create order” endpoint?' },
+    { area: 'Behavioral · Deliver Results', level: 'Intermediate', q: 'Tell me about improving coverage under a tight deadline — what did you cut and why?' },
+    { area: 'System Design', level: 'Advanced', q: 'Walk me through testing a distributed rate limiter. Where does it break under network partitions?' },
+    { area: 'Distributed Systems', level: 'Advanced', q: 'How do you verify correctness of a service under network partitions and clock skew?' },
+    { area: 'Concurrency', level: 'Advanced', q: 'Design a test that reliably reproduces a deadlock in a shared-cache code path.' },
+  ];
+
+  // The 50-question resume-diagnostic bank shown before a plan is curated.
+  DIAG = [
+    { area: 'Automation', level: 'Beginner', q: 'Design a page-object model for a flaky checkout flow.' },
+    { area: 'Automation', level: 'Intermediate', q: 'How do you structure an automation framework for parallel execution?' },
+    { area: 'Automation', level: 'Beginner', q: 'When do you choose UI automation over API automation?' },
+    { area: 'Automation', level: 'Intermediate', q: 'How do you handle test data setup and teardown across a suite?' },
+    { area: 'Automation', level: 'Beginner', q: 'Explain the test pyramid and where most SDET effort should sit.' },
+    { area: 'Automation', level: 'Intermediate', q: 'How do you make Selenium/Playwright tests resilient to a dynamic DOM?' },
+    { area: 'Automation', level: 'Advanced', q: 'Design a retry strategy that does not hide real failures.' },
+    { area: 'Automation', level: 'Intermediate', q: 'How do you measure and improve test-suite execution time?' },
+    { area: 'Automation', level: 'Advanced', q: 'What makes an automation framework maintainable at 10k tests?' },
+    { area: 'Automation', level: 'Intermediate', q: 'How do you report and triage automated failures at scale?' },
+    { area: 'API', level: 'Intermediate', q: 'How do you test an idempotent “create order” endpoint?' },
+    { area: 'API', level: 'Advanced', q: 'Design contract tests between two microservices.' },
+    { area: 'API', level: 'Beginner', q: 'How do you test pagination and rate-limit headers on a REST API?' },
+    { area: 'API', level: 'Intermediate', q: 'What is your approach to testing auth and authorization flows?' },
+    { area: 'API', level: 'Advanced', q: 'How do you validate backward compatibility of an API change?' },
+    { area: 'API', level: 'Intermediate', q: 'How do you test webhooks and async callbacks reliably?' },
+    { area: 'API', level: 'Intermediate', q: 'Design negative tests for a file-upload API with a 5 GB limit.' },
+    { area: 'API', level: 'Beginner', q: 'How do you mock third-party dependencies in integration tests?' },
+    { area: 'Scale & Design', level: 'Advanced', q: 'How would you load-test a service targeting 50k requests/second?' },
+    { area: 'Scale & Design', level: 'Advanced', q: 'Design a test strategy for a distributed rate limiter.' },
+    { area: 'Scale & Design', level: 'Advanced', q: 'How do you test correctness under network partitions?' },
+    { area: 'Scale & Design', level: 'Intermediate', q: 'What metrics define “passing” a performance test?' },
+    { area: 'Scale & Design', level: 'Advanced', q: 'How do you design chaos and fault-injection experiments?' },
+    { area: 'Scale & Design', level: 'Intermediate', q: 'How do you assert on logs, traces and metrics in tests?' },
+    { area: 'Scale & Design', level: 'Advanced', q: 'How do you find the capacity breaking point of a service?' },
+    { area: 'Scale & Design', level: 'Intermediate', q: 'Design a soak test and describe what failures it surfaces.' },
+    { area: 'Concurrency', level: 'Beginner', q: 'What is a race condition? Give a concrete example.' },
+    { area: 'Concurrency', level: 'Advanced', q: 'How do you write a test that reliably reproduces a deadlock?' },
+    { area: 'Concurrency', level: 'Intermediate', q: 'Explain thread-safety issues in a shared cache and how to test them.' },
+    { area: 'Concurrency', level: 'Advanced', q: 'How do you detect data races in a CI pipeline?' },
+    { area: 'Concurrency', level: 'Intermediate', q: 'What synchronization bugs appear only under load?' },
+    { area: 'Concurrency', level: 'Advanced', q: 'How do you test an async job queue for exactly-once processing?' },
+    { area: 'Concurrency', level: 'Advanced', q: 'Explain the ABA problem and its testing implications.' },
+    { area: 'Coding & DSA', level: 'Intermediate', q: 'Implement a sliding-window rate counter; discuss complexity.' },
+    { area: 'Coding & DSA', level: 'Beginner', q: 'Detect a cycle in a linked list.' },
+    { area: 'Coding & DSA', level: 'Intermediate', q: 'Design an LRU cache and its test cases.' },
+    { area: 'Coding & DSA', level: 'Advanced', q: 'Find the k most frequent elements in a stream.' },
+    { area: 'Coding & DSA', level: 'Intermediate', q: 'Merge overlapping intervals; enumerate edge cases.' },
+    { area: 'Coding & DSA', level: 'Advanced', q: 'Implement a thread-safe bounded blocking queue.' },
+    { area: 'Coding & DSA', level: 'Intermediate', q: 'Given logs, compute p95 latency efficiently.' },
+    { area: 'CI/CD', level: 'Intermediate', q: 'Design a CI pipeline that gates merges on test health.' },
+    { area: 'CI/CD', level: 'Advanced', q: 'How do you quarantine and track flaky tests over time?' },
+    { area: 'CI/CD', level: 'Intermediate', q: 'How do you shard tests across CI runners?' },
+    { area: 'CI/CD', level: 'Intermediate', q: 'What is your rollback and verification strategy on deploy?' },
+    { area: 'CI/CD', level: 'Advanced', q: 'How do you keep pipeline runtime under 10 minutes as tests grow?' },
+    { area: 'CI/CD', level: 'Beginner', q: 'How do you manage test environments and secrets safely?' },
+    { area: 'Behavioral', level: 'Intermediate', q: 'Tell me about a time you disagreed with a senior engineer on quality.' },
+    { area: 'Behavioral', level: 'Intermediate', q: 'Describe a bug that reached production and what you changed afterward.' },
+    { area: 'Behavioral', level: 'Beginner', q: 'How do you advocate for quality when timelines slip?' },
+    { area: 'Behavioral', level: 'Intermediate', q: 'Tell me about mentoring a junior on test design.' },
+  ];
+
+  EXTRA_GAPS = [
+    { short: 'Rate-limiter partitions', long: 'Rate-limiter correctness under network partitions' },
+    { short: 'Impact metrics', long: 'Quantifying impact in behavioral answers' },
+  ];
+  EXTRA_PHASE = { name: 'Phase 5 · Post-mock reinforcement', weeks: 'Weeks 15–16', status: 'New', state: 'active',
+    modules: ['Distributed rate-limiter deep dive', 'Fault-injection testing lab', 'Targeted follow-up mock on weak areas'] };
+
+  TREND = [22, 31, 44, 58, 68];
+  MONTHS = ['Mar', 'Apr', 'May', 'Jun', 'Jul'];
+  HISTORY = [
+    { date: 'Jul 12', kind: 'Mock loop · 4 rounds', score: '3.2 / 5', focus: 'System Design' },
+    { date: 'Jul 08', kind: 'Daily drill', score: '7 / 10', focus: 'Concurrency' },
+    { date: 'Jul 05', kind: 'Behavioral mock', score: '3.6 / 5', focus: 'Leadership Principles' },
+    { date: 'Jul 01', kind: 'Daily drill', score: '6 / 10', focus: 'Edge cases' },
+  ];
+
+  MOCK50 = [
+    { area: 'Test automation & frameworks', n: 10 },
+    { area: 'API & integration testing', n: 8 },
+    { area: 'System & scale-testing design', n: 8 },
+    { area: 'Concurrency & parallelism', n: 7 },
+    { area: 'Coding & DSA', n: 7 },
+    { area: 'CI/CD & tooling', n: 6 },
+    { area: 'Behavioral & leadership', n: 4 },
+  ];
+
+  set = (patch) => this.setState(patch);
+
+  readTheme() { try { return localStorage.getItem('asc-theme') || 'dark'; } catch (e) { return 'dark'; } }
+  applyTheme() { document.documentElement.setAttribute('data-theme', this.state.theme); }
+  componentDidMount() { this.applyTheme(); }
+  componentDidUpdate(_p, prev) { if (prev.theme !== this.state.theme) this.applyTheme(); }
+
+  setField(k, v) { this.setState((s) => ({ form: { ...s.form, [k]: v }, errors: { ...s.errors, [k]: undefined } })); }
+  validate(fields) {
+    const f = this.state.form, errs = {};
+    if (fields.includes('name') && !f.name.trim()) errs.name = 'Please enter your name.';
+    if (fields.includes('email')) {
+      if (!f.email.trim()) errs.email = 'Email is required.';
+      else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email)) errs.email = 'Enter a valid email address.';
+    }
+    if (fields.includes('password')) {
+      if (!f.password) errs.password = 'Password is required.';
+      else if (f.password.length < 8) errs.password = 'Use at least 8 characters.';
+    }
+    return errs;
+  }
+
+  navStyle(id) {
+    const active = this.state.screen === id;
+    return {
+      display: 'flex', alignItems: 'center', gap: '11px', width: '100%',
+      padding: '9px 12px', borderRadius: '8px', border: 'none',
+      background: active ? 'var(--color-accent-900)' : 'transparent',
+      color: active ? 'var(--color-accent-200)' : 'var(--color-neutral-300)',
+      font: 'inherit', fontSize: '14px', cursor: 'pointer', textAlign: 'left',
+      transition: 'background .12s',
+    };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const role = this.PROFILE;
+    const C = 2 * Math.PI * 54;
+    const comps = role.comps.map((c) => ({
+      name: c.name,
+      levelLabel: c.level + ' / ' + c.target,
+      level: c.level,
+      tickLeft: c.target,
+    }));
+    const phases = this.PHASES.concat(s.extraPhases).map((p) => ({
+      name: p.name, weeks: p.weeks, status: p.status, modules: p.modules,
+      tagClass: p.state === 'done' ? 'tag tag-neutral' : p.state === 'active' ? 'tag tag-accent' : 'tag tag-outline',
+      isDone: p.state === 'done', isActive: p.state === 'active', isNext: p.state === 'next',
+    }));
+    // progress polyline
+    const w = 560, h = 170, pad = 8;
+    const pts = this.TREND.map((v, i) => {
+      const x = pad + i * ((w - pad * 2) / (this.TREND.length - 1));
+      const y = h - (v / 100) * (h - 20) - 6;
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    const area = '8,' + h + ' ' + pts + ' ' + (w - pad) + ',' + h;
+    const months = this.MONTHS.map((m, i) => ({ m, v: this.TREND[i] }));
+
+    const drillActive = this.DRILL[s.drillIdx];
+    const drill = this.DRILL.map((d, i) => ({
+      area: d.area, q: d.q, num: (i + 1),
+      done: i < s.drillIdx,
+      active: i === s.drillIdx,
+      cls: i < s.drillIdx ? 'asc-dot-done' : i === s.drillIdx ? 'asc-dot-active' : '',
+    }));
+
+    // interview — always sourced from skill-gap areas, filterable by level
+    const ivList = s.ivLevel === 'all' ? this.IVPOOL : this.IVPOOL.filter((q) => q.level === s.ivLevel);
+    const ivIdx = Math.min(s.ivIdx, Math.max(0, ivList.length - 1));
+    const iv = ivList[ivIdx] || { area: '', level: '', q: '' };
+    const ivPrev = ivList.slice(0, ivIdx);
+    const ivAtEnd = ivIdx >= ivList.length - 1;
+    const ivAreas = Array.from(new Set(this.IVPOOL.map((q) => q.area.split(' · ')[0])));
+
+    // gaps + roadmap grow as mock interviews surface new weaknesses
+    const weakAll = role.weak.concat(s.extraGaps.map((g) => g.long));
+    const gapTags = role.gapTags.concat(s.extraGaps.map((g) => g.short));
+    const gapCount = role.gapTags.length + s.extraGaps.length;
+    const segCls = (lvl) => (s.ivLevel === lvl ? 'asc-chip-on' : '');
+
+    return {
+      // theme
+      theme: s.theme,
+      themeIcon: s.theme === 'dark' ? 'ph-sun' : 'ph-moon',
+      themeTitle: s.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',
+      toggleTheme: () => { const next = s.theme === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', next); try { localStorage.setItem('asc-theme', next); } catch (e) {} this.set({ theme: next }); },
+
+      // auth
+      isAuthed: s.authed,
+      isAuthGate: !s.authed,
+      isLogin: !s.authed && s.authScreen === 'login',
+      isRegister: !s.authed && s.authScreen === 'register',
+      name: s.form.name, email: s.form.email, password: s.form.password,
+      onName: (e) => this.setField('name', e.target.value),
+      onEmail: (e) => this.setField('email', e.target.value),
+      onPassword: (e) => this.setField('password', e.target.value),
+      errName: s.errors.name || '', hasErrName: !!s.errors.name, errNameCls: s.errors.name ? 'asc-input-err' : '',
+      errEmail: s.errors.email || '', hasErrEmail: !!s.errors.email, errEmailCls: s.errors.email ? 'asc-input-err' : '',
+      errPassword: s.errors.password || '', hasErrPassword: !!s.errors.password, errPasswordCls: s.errors.password ? 'asc-input-err' : '',
+      showLogin: () => this.set({ authScreen: 'login', errors: {} }),
+      showRegister: () => this.set({ authScreen: 'register', errors: {} }),
+      doLogin: () => { const errs = this.validate(['email', 'password']); if (Object.keys(errs).length) { this.set({ errors: errs }); return; } this.set({ authed: true, screen: 'home', errors: {} }); },
+      doRegister: () => { const errs = this.validate(['name', 'email', 'password']); if (Object.keys(errs).length) { this.set({ errors: errs }); return; } this.set({ authed: true, screen: 'onboarding', onbStep: 0, errors: {} }); },
+      logout: () => this.set({ authed: false, authScreen: 'login', form: { name: '', email: '', password: '' }, errors: {}, chatOpen: false, chatExpanded: false }),
+
+      screen: s.screen, role,
+      greeting: 'Good morning, Priya',
+      dateStr: 'Tuesday, 15 July — Day 47 of your plan',
+      comps, phases, weak: weakAll, gapTags, gapCount,
+      ringC: C.toFixed(1),
+      ringOffset: (C * (1 - role.readiness / 100)).toFixed(1),
+
+      isHome: s.screen === 'home', isGaps: s.screen === 'gaps', isRoadmap: s.screen === 'roadmap',
+      isInterview: s.screen === 'interview', isDrill: s.screen === 'drill',
+      isProgress: s.screen === 'progress', isOnboarding: s.screen === 'onboarding',
+
+      navHomeCls: s.screen === 'home' ? 'asc-nav-active' : '',
+      navGapsCls: s.screen === 'gaps' ? 'asc-nav-active' : '',
+      navRoadmapCls: s.screen === 'roadmap' ? 'asc-nav-active' : '',
+      navInterviewCls: s.screen === 'interview' ? 'asc-nav-active' : '',
+      navDrillCls: s.screen === 'drill' ? 'asc-nav-active' : '',
+      navProgressCls: s.screen === 'progress' ? 'asc-nav-active' : '',
+      goHome: () => this.set({ screen: 'home' }), goGaps: () => this.set({ screen: 'gaps' }),
+      goRoadmap: () => this.set({ screen: 'roadmap' }), goInterview: () => this.set({ screen: 'interview' }),
+      goDrill: () => this.set({ screen: 'drill' }), goProgress: () => this.set({ screen: 'progress' }),
+      goOnboarding: () => this.set({ screen: 'onboarding', onbStep: 0 }),
+
+      // drill
+      drill, drillActive, drillNum: s.drillIdx + 1, drillDone: s.drillDone,
+      drillProgress: 'Question ' + (s.drillIdx + 1) + ' of 10',
+      submitDrill: () => this.set({ drillDone: true }),
+      nextDrill: () => this.set({ drillIdx: Math.min(9, s.drillIdx + 1), drillDone: false }),
+      atLastDrill: s.drillIdx >= 9,
+
+      // interview
+      iv, ivPrev, ivNum: ivIdx + 1, ivTotal: ivList.length, ivAreas,
+      ivActive: !s.ivComplete, ivComplete: s.ivComplete,
+      ivBtnLabel: ivAtEnd ? 'Finish & score' : 'Submit & continue',
+      nextIv: () => {
+        if (ivAtEnd) this.setState({ ivComplete: true, extraGaps: this.EXTRA_GAPS, extraPhases: [this.EXTRA_PHASE] });
+        else this.set({ ivIdx: ivIdx + 1 });
+      },
+      restartIv: () => this.set({ ivIdx: 0, ivComplete: false }),
+      segAllCls: segCls('all'), segBegCls: segCls('Beginner'), segIntCls: segCls('Intermediate'), segAdvCls: segCls('Advanced'),
+      setLevelAll: () => this.set({ ivLevel: 'all', ivIdx: 0, ivComplete: false }),
+      setLevelBeg: () => this.set({ ivLevel: 'Beginner', ivIdx: 0, ivComplete: false }),
+      setLevelInt: () => this.set({ ivLevel: 'Intermediate', ivIdx: 0, ivComplete: false }),
+      setLevelAdv: () => this.set({ ivLevel: 'Advanced', ivIdx: 0, ivComplete: false }),
+
+      // progress
+      chartPts: pts, chartArea: area, months, history: this.HISTORY,
+
+      // onboarding
+      onbStep: s.onbStep,
+      onb0: s.onbStep === 0, onb1: s.onbStep === 1, onb2: s.onbStep === 2,
+      mock50: this.MOCK50,
+      diagQuestions: this.DIAG.map((d, i) => ({ n: i + 1, area: d.area, level: d.level, q: d.q })),
+      diagTaken: s.diagTaken, diagNotTaken: !s.diagTaken,
+      takeDiag: () => this.set({ screen: 'diagtest', diagIdx: 0 }),
+      skipDiag: () => this.set({ diagTaken: false, onbStep: 2 }),
+
+      // diagnostic test taker
+      isDiagTest: s.screen === 'diagtest',
+      diagActive: this.DIAG[Math.min(s.diagIdx, this.DIAG.length - 1)],
+      diagQNum: s.diagIdx + 1, diagTotal: this.DIAG.length,
+      diagBar: React.createElement('div', { style: { height: '100%', background: 'var(--color-accent)', width: Math.round(((s.diagIdx + 1) / this.DIAG.length) * 100) + '%', transition: 'width .2s' } }),
+      diagHasPrev: s.diagIdx > 0,
+      diagAtLast: s.diagIdx >= this.DIAG.length - 1,
+      diagNotLast: s.diagIdx < this.DIAG.length - 1,
+      nextDiagQ: () => this.set({ diagIdx: Math.min(this.DIAG.length - 1, s.diagIdx + 1) }),
+      prevDiagQ: () => this.set({ diagIdx: Math.max(0, s.diagIdx - 1) }),
+      finishDiag: () => this.set({ diagTaken: true, screen: 'onboarding', onbStep: 2, diagIdx: 0 }),
+      exitDiag: () => this.set({ screen: 'onboarding', onbStep: 1 }),
+      onbNext: () => this.set({ onbStep: Math.min(2, s.onbStep + 1) }),
+      onbBack: () => this.set({ onbStep: Math.max(0, s.onbStep - 1) }),
+      onbFinish: () => this.set({ screen: 'home', onbStep: 0 }),
+
+      // chat
+      chatOpen: s.chatOpen, chatExpanded: s.chatExpanded,
+      chatExpCls: s.chatExpanded ? 'asc-chat-exp' : '',
+      openChat: () => this.set({ chatOpen: true }),
+      closeChat: () => this.set({ chatOpen: false, chatExpanded: false }),
+      toggleExpand: () => this.set({ chatExpanded: !s.chatExpanded }),
+    };
+  }
+}
+</script>
+</body>
+</html>

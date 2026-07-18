@@ -1,0 +1,10 @@
+{
+  "name": "ascendra-platform",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix ascendra-frontend run dev",
+    "build": "npm --prefix ascendra-frontend run build",
+    "lint": "npm --prefix ascendra-frontend run lint",
+    "preview": "npm --prefix ascendra-frontend run preview"
+  }
+}
