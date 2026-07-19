@@ -24,16 +24,25 @@ Timeline (padding-left 6): each phase = grid `auto 1fr` gap 16:
   fill; next → transparent with inset 1.5px `--color-neutral-600` ring) + 2px
   vertical `--color-divider` line filling remaining height.
 - Right: Card elev-sm hover padding 18 margin-bottom 16: header row (card-title
-  16px phase name + muted 12px weeks / status Tag right); module list: rows with
-  `BookOpenText` neutral-500 icon + 13px text, divider bottom.
+  16px phase name + muted 12px weeks / status Tag right); module list: each
+  module is an external resource link row (`.asc-res`, `target="_blank"
+  rel="noopener"`, title "Open resource in a new tab", divider bottom):
+  `BookOpenText` neutral-500 icon + module name 13px (flex 1) + right
+  `.asc-res-lnk` (11.5px accent): resource name + `ArrowSquareOut` icon.
 
-Base phases (fixtures): Phase 1 · Foundations (Weeks 1–3, done), Phase 2 · Test
-Engineering Depth (Weeks 4–7, active), Phase 3 · Distributed Systems & Design
-(Weeks 8–11, next), Phase 4 · Interview Simulation (Weeks 12–14, next) — module
-lists per `ascendra-frontend/src/services/fixtures.ts`.
+Modules are `PhaseModule { name, res, url }`. Base phases (fixtures): Phase 1 ·
+Foundations (Weeks 1–3, done), Phase 2 · Test Engineering Depth (Weeks 4–7,
+active), Phase 3 · Distributed Systems & Design (Weeks 8–11, next), Phase 4 ·
+Interview Simulation (Weeks 12–14, next) — module names + resource labels/urls
+verbatim per `ascendra-frontend/src/services/fixtures.ts` (LeetCode Explore,
+Exercism, Grind 75, Martin Fowler Test Pyramid, Playwright best practices,
+Jenkov, k6 docs, Google SWE Book, Principles of Chaos, Tech Interview Handbook,
+Pramp, interviewing.io).
 
 ## Acceptance checklist
 
 - [ ] 4 phases render with correct dot states and status tags.
+- [ ] Module rows are external links: resource label + ArrowSquareOut on the right, hover underlines the link text, opens in a new tab.
 - [ ] After completing a mock interview, "Phase 5 · Post-mock reinforcement" (Weeks 15–16, tag accent "New") appears at the end with its 3 modules, and persists on reload.
+- [ ] After a coding test, the "Coding reinforcement — {area}" phase appears with its 2 resource-linked modules.
 - [ ] Both themes clean.

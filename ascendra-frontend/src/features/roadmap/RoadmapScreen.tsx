@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react'
-import { BookOpenText } from '@phosphor-icons/react'
+import { ArrowSquareOut, BookOpenText } from '@phosphor-icons/react'
 import { Card, CardTitle, Tag, type TagProps } from '../../components/ui'
 import { getBasePhases } from '../../services/roadmap'
 import { usePrepStore } from '../../stores/prepStore'
@@ -106,8 +106,13 @@ export function RoadmapScreen() {
                 }}
               >
                 {p.modules.map((m) => (
-                  <div
-                    key={m}
+                  <a
+                    key={m.name}
+                    className="asc-res"
+                    href={m.url}
+                    target="_blank"
+                    rel="noopener"
+                    title="Open resource in a new tab"
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -118,8 +123,21 @@ export function RoadmapScreen() {
                     }}
                   >
                     <BookOpenText size={16} color="var(--color-neutral-500)" />
-                    {m}
-                  </div>
+                    <span style={{ flex: 1 }}>{m.name}</span>
+                    <span
+                      className="asc-res-lnk"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        fontSize: 11.5,
+                        color: 'var(--color-accent)',
+                      }}
+                    >
+                      {m.res}
+                      <ArrowSquareOut size={13} />
+                    </span>
+                  </a>
                 ))}
               </div>
             </Card>

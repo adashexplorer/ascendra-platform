@@ -296,8 +296,8 @@ export function OnboardingScreen() {
                   }}
                 >
                   {profile?.gapTags.map((g) => (
-                    <Tag key={g} variant="outline">
-                      {g}
+                    <Tag key={g.label} variant="outline">
+                      {g.label}
                     </Tag>
                   ))}
                 </div>

@@ -314,6 +314,10 @@ button{font-family:inherit}
 .asc-link{background:none;border:none;color:var(--color-accent);cursor:pointer;font:inherit;padding:0;text-decoration:underline}
 .asc-input-err{border-color:#e5484d!important}
 .asc-field-err{color:#e5484d;font-size:11.5px;margin-top:5px}
+.asc-res{color:inherit;text-decoration:none}
+.asc-res:hover .asc-res-lnk{text-decoration:underline}
+.asc-todo-done{text-decoration:line-through;color:var(--color-neutral-500)}
+a{color:var(--color-accent)}a:hover{color:var(--color-accent-200)}
 :root[data-theme="light"]{
   --color-bg:#f5f6fb;--color-surface:#ffffff;--color-text:#1b1d2a;
   --color-accent:#6b5fd0;--color-accent-2:#7b74c4;

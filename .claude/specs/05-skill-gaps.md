@@ -31,9 +31,16 @@ Bottom grid (1fr 1fr, gap 16):
 - **Strengths on your resume** (title row `CheckCircle` accent): accent Tags:
   "Selenium / Playwright", "API test automation", "CI/CD (Jenkins)",
   "Java · Python", "Agile QA lead".
-- **Priority gaps to close** (title row `WarningCircle` neutral-400): outline
-  Tags from gapTags. Footnote muted 11px "Updated automatically as mock
-  interviews surface new weaknesses." Primary Button
+- **Priority gaps to close** (title row `WarningCircle` neutral-400): one ROW
+  per gap (column layout, divider bottom per row), each row an external link
+  (`.asc-res`, `target="_blank" rel="noopener"`, title "Open resource in a new
+  tab"): outline Tag with the gap label (flex none) + right-aligned
+  `.asc-res-lnk` (12px accent): resource name + `ArrowSquareOut` icon. Gap data
+  is `GapTag { label, res, url }` — base tags from the profile fixtures
+  (System Design Primer, ByteByteGo guides, Jenkov concurrency course,
+  Grafana k6 docs, Tech Interview Handbook) plus `prepStore.extraGaps` mapped to
+  `{ label: short, res, url }`. Footnote muted 11px "Updated automatically as
+  mock interviews surface new weaknesses." Primary Button
   "Generate roadmap from gaps" → `/roadmap`.
 
 ## Acceptance checklist

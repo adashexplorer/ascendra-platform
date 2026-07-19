@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router'
-import { Sparkle, SunHorizon } from '@phosphor-icons/react'
+import { NotePencil, Sparkle, SunHorizon } from '@phosphor-icons/react'
 import { Chip, ThemeToggle } from '../ui'
 import { useUiStore } from '../../stores/uiStore'
 
 export function TopBar() {
   const navigate = useNavigate()
   const openChat = useUiStore((s) => s.openChat)
+  const notesOpen = useUiStore((s) => s.notesOpen)
+  const toggleNotes = useUiStore((s) => s.toggleNotes)
 
   return (
     <div
@@ -18,6 +20,10 @@ export function TopBar() {
       }}
     >
       <ThemeToggle />
+      <Chip on={notesOpen} onClick={toggleNotes}>
+        <NotePencil size={16} />
+        Notes &amp; TODOs
+      </Chip>
       <Chip onClick={() => navigate('/drill')}>
         <SunHorizon size={16} />
         Today's 10

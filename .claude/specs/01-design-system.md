@@ -14,6 +14,10 @@ primitives so features never touch raw markup patterns inconsistently.
    - `.asc-chip` (+ `:hover`, `.asc-chip-on`), `.asc-dot` (+ `-done`, `-active`),
      `.asc-card-hover`, `.asc-chat` (+ `.asc-chat-exp`), `.asc-link`,
      `.asc-input-err`, `.asc-field-err`
+   - v2 additions: `.asc-res` (resource-link row wrapper — inherits color, no
+     underline; hovering underlines its `.asc-res-lnk`), `.asc-res-lnk`,
+     `.asc-todo-done` (line-through, neutral-500), and global anchor colors
+     `a{color:var(--color-accent)}` / `a:hover{color:var(--color-accent-200)}`
    - the full `:root[data-theme="light"]` token override block (colors, ramps, shadows)
      and its two light-theme shadow tweaks for `.asc-card-hover:hover` / `.asc-chat`.
 3. Import once in `ascendra-frontend/src/main.tsx`.

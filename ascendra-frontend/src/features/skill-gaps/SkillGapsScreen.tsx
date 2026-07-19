@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { CheckCircle, WarningCircle } from '@phosphor-icons/react'
+import { ArrowSquareOut, CheckCircle, WarningCircle } from '@phosphor-icons/react'
 import {
   Button,
   Card,
@@ -38,7 +38,10 @@ export function SkillGapsScreen() {
 
   if (!profile) return null
 
-  const gapTags = [...profile.gapTags, ...extraGaps.map((g) => g.short)]
+  const gapTags = [
+    ...profile.gapTags,
+    ...extraGaps.map((g) => ({ label: g.short, res: g.res, url: g.url })),
+  ]
   const gapCount = gapTags.length
 
   return (
@@ -141,11 +144,41 @@ export function SkillGapsScreen() {
             <WarningCircle size={17} color="var(--color-neutral-400)" />
             <CardTitle style={{ fontSize: 15 }}>Priority gaps to close</CardTitle>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
             {gapTags.map((g) => (
-              <Tag key={g} variant="outline">
-                {g}
-              </Tag>
+              <a
+                key={g.label}
+                className="asc-res"
+                href={g.url}
+                target="_blank"
+                rel="noopener"
+                title="Open resource in a new tab"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '8px 0',
+                  boxShadow: 'inset 0 -1px 0 var(--color-divider)',
+                }}
+              >
+                <Tag variant="outline" style={{ flex: 'none' }}>
+                  {g.label}
+                </Tag>
+                <span
+                  className="asc-res-lnk"
+                  style={{
+                    marginLeft: 'auto',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    fontSize: 12,
+                    color: 'var(--color-accent)',
+                  }}
+                >
+                  {g.res}
+                  <ArrowSquareOut size={14} />
+                </span>
+              </a>
             ))}
           </div>
           <p className="text-muted" style={{ fontSize: 11, margin: '12px 0 0' }}>

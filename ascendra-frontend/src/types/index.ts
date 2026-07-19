@@ -4,13 +4,25 @@ export interface Competency {
   target: number
 }
 
+export interface GapTag {
+  label: string
+  res: string
+  url: string
+}
+
 export interface Profile {
   readiness: number
   target: number
   delta: string
   comps: Competency[]
   weak: string[]
-  gapTags: string[]
+  gapTags: GapTag[]
+}
+
+export interface PhaseModule {
+  name: string
+  res: string
+  url: string
 }
 
 export interface Phase {
@@ -18,7 +30,7 @@ export interface Phase {
   weeks: string
   status: string
   state: 'done' | 'active' | 'next'
-  modules: string[]
+  modules: PhaseModule[]
 }
 
 export type QuestionLevel = 'Beginner' | 'Intermediate' | 'Advanced'
@@ -40,9 +52,17 @@ export interface DiagnosticQuestion {
   q: string
 }
 
+export interface CodingQuestion {
+  area: string
+  level: QuestionLevel
+  q: string
+}
+
 export interface GapItem {
   short: string
   long: string
+  res: string
+  url: string
 }
 
 export interface TrendPoint {
@@ -55,6 +75,11 @@ export interface SessionRecord {
   kind: string
   score: string
   focus: string
+}
+
+export interface TodoItem {
+  text: string
+  done: boolean
 }
 
 export interface User {

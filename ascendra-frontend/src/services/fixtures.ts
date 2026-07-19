@@ -1,4 +1,5 @@
 import type {
+  CodingQuestion,
   DiagnosticQuestion,
   DrillQuestion,
   GapItem,
@@ -29,11 +30,11 @@ export const PROFILE: Profile = {
     'Test design for edge cases',
   ],
   gapTags: [
-    'Distributed systems',
-    'System design depth',
-    'Concurrency',
-    'Scale-testing',
-    'Behavioral depth',
+    { label: 'Distributed systems', res: 'System Design Primer', url: 'https://github.com/donnemartin/system-design-primer' },
+    { label: 'System design depth', res: 'ByteByteGo guides', url: 'https://bytebytego.com' },
+    { label: 'Concurrency', res: 'Jenkov concurrency course', url: 'https://jenkov.com/tutorials/java-concurrency/index.html' },
+    { label: 'Scale-testing', res: 'Grafana k6 docs', url: 'https://grafana.com/docs/k6/latest/' },
+    { label: 'Behavioral depth', res: 'Tech Interview Handbook', url: 'https://www.techinterviewhandbook.org/behavioral-interview/' },
   ],
 }
 
@@ -43,28 +44,44 @@ export const PHASES: Phase[] = [
     weeks: 'Weeks 1–3',
     status: 'Complete',
     state: 'done',
-    modules: ['DSA refresher', 'Language & tooling baseline', 'Resume-mapped diagnostic test'],
+    modules: [
+      { name: 'DSA refresher', res: 'LeetCode Explore', url: 'https://leetcode.com/explore/' },
+      { name: 'Language & tooling baseline', res: 'Exercism tracks', url: 'https://exercism.org' },
+      { name: 'Resume-mapped diagnostic test', res: 'Grind 75 plan', url: 'https://www.techinterviewhandbook.org/grind75' },
+    ],
   },
   {
     name: 'Phase 2 · Test Engineering Depth',
     weeks: 'Weeks 4–7',
     status: 'In progress',
     state: 'active',
-    modules: ['Test strategy & the test pyramid', 'Automation framework design', 'Concurrency & flaky-test debugging'],
+    modules: [
+      { name: 'Test strategy & the test pyramid', res: 'Martin Fowler — Test Pyramid', url: 'https://martinfowler.com/articles/practical-test-pyramid.html' },
+      { name: 'Automation framework design', res: 'Playwright best practices', url: 'https://playwright.dev/docs/best-practices' },
+      { name: 'Concurrency & flaky-test debugging', res: 'Jenkov concurrency course', url: 'https://jenkov.com/tutorials/java-concurrency/index.html' },
+    ],
   },
   {
     name: 'Phase 3 · Distributed Systems & Design',
     weeks: 'Weeks 8–11',
     status: 'Upcoming',
     state: 'next',
-    modules: ['Distributed testing at scale', 'Design for testability', 'Observability & fault injection'],
+    modules: [
+      { name: 'Distributed testing at scale', res: 'Grafana k6 docs', url: 'https://grafana.com/docs/k6/latest/' },
+      { name: 'Design for testability', res: 'Google SWE Book — Testing', url: 'https://abseil.io/resources/swe-book/html/ch11.html' },
+      { name: 'Observability & fault injection', res: 'Principles of Chaos', url: 'https://principlesofchaos.org' },
+    ],
   },
   {
     name: 'Phase 4 · Interview Simulation',
     weeks: 'Weeks 12–14',
     status: 'Upcoming',
     state: 'next',
-    modules: ['Behavioral leadership loop', 'Full mock loop ×3', 'Readiness gate ≥ 85'],
+    modules: [
+      { name: 'Behavioral leadership loop', res: 'Tech Interview Handbook', url: 'https://www.techinterviewhandbook.org/behavioral-interview/' },
+      { name: 'Full mock loop ×3', res: 'Pramp peer mocks', url: 'https://www.pramp.com' },
+      { name: 'Readiness gate ≥ 85', res: 'interviewing.io', url: 'https://interviewing.io' },
+    ],
   },
 ]
 
@@ -149,8 +166,8 @@ export const DIAG: DiagnosticQuestion[] = [
 ]
 
 export const EXTRA_GAPS: GapItem[] = [
-  { short: 'Rate-limiter partitions', long: 'Rate-limiter correctness under network partitions' },
-  { short: 'Impact metrics', long: 'Quantifying impact in behavioral answers' },
+  { short: 'Rate-limiter partitions', long: 'Rate-limiter correctness under network partitions', res: 'System Design Primer', url: 'https://github.com/donnemartin/system-design-primer' },
+  { short: 'Impact metrics', long: 'Quantifying impact in behavioral answers', res: 'Tech Interview Handbook', url: 'https://www.techinterviewhandbook.org/behavioral-interview/' },
 ]
 
 export const EXTRA_PHASE: Phase = {
@@ -158,7 +175,33 @@ export const EXTRA_PHASE: Phase = {
   weeks: 'Weeks 15–16',
   status: 'New',
   state: 'active',
-  modules: ['Distributed rate-limiter deep dive', 'Fault-injection testing lab', 'Targeted follow-up mock on weak areas'],
+  modules: [
+    { name: 'Distributed rate-limiter deep dive', res: 'System Design Primer', url: 'https://github.com/donnemartin/system-design-primer' },
+    { name: 'Fault-injection testing lab', res: 'Principles of Chaos', url: 'https://principlesofchaos.org' },
+    { name: 'Targeted follow-up mock on weak areas', res: 'Pramp peer mocks', url: 'https://www.pramp.com' },
+  ],
+}
+
+export const CODEPOOL: CodingQuestion[] = [
+  { area: 'Arrays & Strings', level: 'Beginner', q: 'Reverse the words in a sentence in place. Handle multiple spaces.' },
+  { area: 'Arrays & Strings', level: 'Intermediate', q: 'Find the longest substring without repeating characters.' },
+  { area: 'Arrays & Strings', level: 'Advanced', q: 'Implement a sliding-window minimum over a stream of integers.' },
+  { area: 'Data Structures', level: 'Beginner', q: 'Detect a cycle in a linked list and return the node where it begins.' },
+  { area: 'Data Structures', level: 'Intermediate', q: 'Design an LRU cache with O(1) get and put.' },
+  { area: 'Data Structures', level: 'Advanced', q: 'Design a time-based key-value store with versioned reads.' },
+  { area: 'Concurrency', level: 'Beginner', q: 'Print numbers 1–100 alternately from two threads, in order.' },
+  { area: 'Concurrency', level: 'Intermediate', q: 'Implement a thread-safe bounded blocking queue.' },
+  { area: 'Concurrency', level: 'Advanced', q: 'Build a token-bucket rate limiter safe under concurrent callers.' },
+  { area: 'Algorithms', level: 'Beginner', q: 'Merge two sorted arrays into one sorted output.' },
+  { area: 'Algorithms', level: 'Intermediate', q: 'Merge overlapping intervals; enumerate the edge cases you test.' },
+  { area: 'Algorithms', level: 'Advanced', q: 'Find the k most frequent elements in a stream using O(k) memory.' },
+]
+
+export const CT_RES: Record<string, { res: string; url: string }> = {
+  'Arrays & Strings': { res: 'LeetCode — Array problems', url: 'https://leetcode.com/tag/array/' },
+  'Data Structures': { res: 'LeetCode — Design problems', url: 'https://leetcode.com/tag/design/' },
+  'Concurrency': { res: 'LeetCode — Concurrency problems', url: 'https://leetcode.com/tag/concurrency/' },
+  'Algorithms': { res: 'NeetCode roadmap', url: 'https://neetcode.io/roadmap' },
 }
 
 export const TREND: number[] = [22, 31, 44, 58, 68]

@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router'
 import {
   ArrowClockwise,
   ChartBar,
+  Code,
   Compass,
   MicrophoneStage,
   Path,
@@ -22,6 +23,7 @@ const NAV_ITEMS: { label: string; to: string; icon: Icon }[] = [
   { label: 'Skill Gaps', to: '/gaps', icon: ChartBar },
   { label: 'Roadmap', to: '/roadmap', icon: Path },
   { label: 'Mock Interview', to: '/interview', icon: MicrophoneStage },
+  { label: 'Playground', to: '/playground', icon: Code },
   { label: 'Daily Drill', to: '/drill', icon: SunHorizon },
   { label: 'Progress', to: '/progress', icon: TrendUp },
 ]

@@ -44,7 +44,8 @@ ascendra-frontend/src/
 | `/` | Overview | AppShell | requires auth; if `!onboarded` redirect `/onboarding` |
 | `/gaps` | Skill Gaps | AppShell | same |
 | `/roadmap` | Roadmap | AppShell | same |
-| `/interview` | Mock Interview | AppShell | same |
+| `/interview` | Mock Interview & coding test | AppShell | same |
+| `/playground` | Coding Playground | AppShell | same |
 | `/drill` | Daily Drill | AppShell | same |
 | `/progress` | Progress | AppShell | same |
 
@@ -65,8 +66,14 @@ Unknown paths redirect to `/`.
   - `diagTaken: boolean`, `diagIdx: number` (resume position in diagnostic)
   - `drillIdx: number`, `drillDone: boolean`
   - actions: `completeMockInterview()` (adds EXTRA_GAPS + EXTRA_PHASE fixtures once, bumps readiness +4),
+    `completeCodingTest(area)` (adds the "{area} (coding)" gap + coding-reinforcement
+    phase once per area, readiness +3 — see spec 07),
     `submitDrillAnswer()`, `nextDrillQuestion()`, `setDiagIdx()`, `finishDiagnostic()`, `resetDiagnostic()`
-- **uiStore** (not persisted): `chatOpen`, `chatExpanded`; actions `openChat`, `closeChat`, `toggleExpand`.
+- **uiStore** (not persisted): `chatOpen`, `chatExpanded`, `notesOpen`; actions
+  `openChat`, `closeChat`, `toggleExpand`, `toggleNotes`.
+- **notesStore** (persisted — notes under localStorage key `asc-notes`, todos
+  under `asc-todos`): `notes: string`, `todos: {text, done}[]`; actions
+  `setNotes`, `addTodo`, `toggleTodo`, `removeTodo` (spec 12).
 
 ## Services (`ascendra-frontend/src/services/`)
 
@@ -78,7 +85,9 @@ Async, API-shaped functions returning typed fixtures (all fixture data lives in
 - `profile.ts`: `getProfile(): Promise<Profile>` — readiness, target, delta, competencies, weak areas, gap tags.
 - `questions.ts`: `getDrillQuestions(): Promise<DrillQuestion[]>` (10),
   `getInterviewPool(): Promise<InterviewQuestion[]>` (9, tagged by level),
-  `getDiagnosticBank(): Promise<DiagnosticQuestion[]>` (50).
+  `getDiagnosticBank(): Promise<DiagnosticQuestion[]>` (50),
+  `getCodingPool(): Promise<CodingQuestion[]>` (12, 4 areas × 3 levels) and the
+  `CT_RES` area→resource map (spec 07).
 - `roadmap.ts`: `getBasePhases(): Promise<Phase[]>` (4 phases), plus the `EXTRA_PHASE` / `EXTRA_GAPS` constants consumed by prepStore.
 - `sessions.ts`: `getTrend(): Promise<TrendPoint[]>` ([22,31,44,58,68] × Mar–Jul), `getHistory(): Promise<SessionRecord[]>` (4 rows).
 
@@ -86,15 +95,19 @@ Async, API-shaped functions returning typed fixtures (all fixture data lives in
 
 ```ts
 Competency { name: string; level: number; target: number }
-Profile { readiness: number; target: number; delta: string; comps: Competency[]; weak: string[]; gapTags: string[] }
-Phase { name: string; weeks: string; status: string; state: 'done' | 'active' | 'next'; modules: string[] }
+GapTag { label: string; res: string; url: string }          // v2: resource-linked
+Profile { readiness: number; target: number; delta: string; comps: Competency[]; weak: string[]; gapTags: GapTag[] }
+PhaseModule { name: string; res: string; url: string }      // v2: resource-linked
+Phase { name: string; weeks: string; status: string; state: 'done' | 'active' | 'next'; modules: PhaseModule[] }
 QuestionLevel = 'Beginner' | 'Intermediate' | 'Advanced'
 DrillQuestion { area: string; q: string }
 InterviewQuestion { area: string; level: QuestionLevel; q: string }
 DiagnosticQuestion { area: string; level: QuestionLevel; q: string }
-GapItem { short: string; long: string }
+CodingQuestion { area: string; level: QuestionLevel; q: string }   // v2
+GapItem { short: string; long: string; res: string; url: string }  // v2: + resource
 TrendPoint { month: string; value: number }
 SessionRecord { date: string; kind: string; score: string; focus: string }
+TodoItem { text: string; done: boolean }                    // v2
 User { name: string; email: string; initials: string; plan: string }
 ```
 
@@ -104,18 +117,21 @@ Sidebar (236px, sticky, surface bg, 1px divider edge right):
 - Brand: 26px rounded square accent bg + `Compass` icon + "Ascendra" (heading font, 600, 18px).
 - Nav (Phosphor icons): Overview `SquaresFour` → `/`, Skill Gaps `ChartBar` → `/gaps`,
   Roadmap `Path` → `/roadmap`, Mock Interview `MicrophoneStage` → `/interview`,
-  Daily Drill `SunHorizon` → `/drill`, Progress `TrendUp` → `/progress`.
+  Playground `Code` → `/playground`, Daily Drill `SunHorizon` → `/drill`,
+  Progress `TrendUp` → `/progress`.
   Active item: `--color-accent-900` bg, `--color-accent-200` text. Hover: `--color-neutral-900` bg.
 - Bottom: "Re-run diagnostic" Chip (ArrowClockwise icon, navigates `/onboarding`),
   user card (initials avatar `--color-accent-800`/`--color-accent-100`, name,
   "Pro plan", sign-out icon button → `logout()` → `/login`).
 
 Main column: max-width 1180px; top bar right-aligned with: theme toggle icon
-button (Sun in dark / Moon in light), Chip "Today's 10" (SunHorizon) → `/drill`,
-Chip "Ask Ascendra" (Sparkle, accent icon) → opens chat.
+button (Sun in dark / Moon in light), Chip "Notes & TODOs" (NotePencil, `on`
+while the panel is open) → toggles the notes panel, Chip "Today's 10"
+(SunHorizon) → `/drill`, Chip "Ask Ascendra" (Sparkle, accent icon) → opens chat.
 
 The chat launcher/panel (spec 10) is rendered inside AppShell so it floats on
-all authed screens.
+all authed screens. The Notes & TODOs panel (spec 12) is a right `<aside>`
+sibling of the main column, also rendered by AppShell.
 
 ## Conventions
 
@@ -133,7 +149,9 @@ all authed screens.
 | 04 | Overview | / | — | built |
 | 05 | Skill Gaps | /gaps | — | built |
 | 06 | Roadmap | /roadmap | prepStore.extraPhases | built |
-| 07 | Mock Interview | /interview | prepStore.extraGaps/extraPhases | built |
+| 07 | Mock Interview + coding test | /interview | prepStore.extraGaps/extraPhases | built (v2 in progress) |
 | 08 | Daily Drill | /drill | prepStore.drill* | built |
 | 09 | Progress | /progress | — | built |
 | 10 | Chat agent | (floating) | uiStore | built |
+| 11 | Coding Playground | /playground | — | in progress |
+| 12 | Notes & TODOs panel | (docked aside) | uiStore.notesOpen, notesStore | in progress |

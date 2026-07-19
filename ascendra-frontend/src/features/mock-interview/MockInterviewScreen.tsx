@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import {
   ArrowRight,
+  Code,
   Microphone,
   MicrophoneStage,
   PlusCircle,
@@ -19,6 +20,7 @@ import {
 import { getInterviewPool } from '../../services/questions'
 import { usePrepStore } from '../../stores/prepStore'
 import type { InterviewQuestion, QuestionLevel } from '../../types'
+import { CodingTest } from './CodingTest'
 
 const LEVELS: Array<'all' | QuestionLevel> = [
   'all',
@@ -38,6 +40,7 @@ export function MockInterviewScreen() {
   const navigate = useNavigate()
   const completeMockInterview = usePrepStore((s) => s.completeMockInterview)
 
+  const [mode, setMode] = useState<'interview' | 'coding'>('interview')
   const [pool, setPool] = useState<InterviewQuestion[]>([])
   const [level, setLevel] = useState<'all' | QuestionLevel>('all')
   const [idx, setIdx] = useState(0)
@@ -91,6 +94,28 @@ export function MockInterviewScreen() {
 
   return (
     <div>
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          flexWrap: 'wrap',
+          marginBottom: 18,
+        }}
+      >
+        <Chip on={mode === 'interview'} onClick={() => setMode('interview')}>
+          <MicrophoneStage size={15} />
+          Adaptive interview
+        </Chip>
+        <Chip on={mode === 'coding'} onClick={() => setMode('coding')}>
+          <Code size={15} />
+          Mock coding test
+        </Chip>
+      </div>
+
+      {mode === 'coding' ? (
+        <CodingTest />
+      ) : (
+        <div>
       <div
         style={{
           display: 'flex',
@@ -312,6 +337,8 @@ export function MockInterviewScreen() {
             </Button>
           </div>
         </Card>
+      )}
+        </div>
       )}
     </div>
   )

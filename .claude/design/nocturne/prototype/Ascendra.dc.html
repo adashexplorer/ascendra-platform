@@ -27,6 +27,10 @@ button{font-family:inherit}
 .asc-chat{position:fixed;right:22px;bottom:22px;z-index:60;width:380px;height:520px;display:flex;flex-direction:column;background:var(--color-surface);border-radius:14px;box-shadow:0 0 0 1px var(--color-neutral-700),0 24px 60px rgba(0,0,0,.6);overflow:hidden;transition:width .16s,height .16s}
 .asc-chat-exp{width:min(560px,92vw);height:min(720px,84vh)}
 .asc-link{background:none;border:none;color:var(--color-accent);cursor:pointer;font:inherit;padding:0;text-decoration:underline}
+.asc-res{color:inherit;text-decoration:none}
+.asc-res:hover .asc-res-lnk{text-decoration:underline}
+.asc-todo-done{text-decoration:line-through;color:var(--color-neutral-500)}
+a{color:var(--color-accent)}a:hover{color:var(--color-accent-200)}
 .asc-input-err{border-color:#e5484d!important}
 .asc-field-err{color:#e5484d;font-size:11.5px;margin-top:5px}
 :root[data-theme="light"]{
@@ -97,6 +101,7 @@ button{font-family:inherit}
       <button class="asc-nav-hover {{ navRoadmapCls }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:9px 12px;border-radius:8px;border:none;background:transparent;color:var(--color-neutral-300);font:inherit;font-size:14px;cursor:pointer;text-align:left;transition:background .12s" onClick="{{ goRoadmap }}"><i class="ph ph-path" style="font-size:18px"></i>Roadmap</button>
       <button class="asc-nav-hover {{ navInterviewCls }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:9px 12px;border-radius:8px;border:none;background:transparent;color:var(--color-neutral-300);font:inherit;font-size:14px;cursor:pointer;text-align:left;transition:background .12s" onClick="{{ goInterview }}"><i class="ph ph-microphone-stage" style="font-size:18px"></i>Mock Interview</button>
       <button class="asc-nav-hover {{ navDrillCls }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:9px 12px;border-radius:8px;border:none;background:transparent;color:var(--color-neutral-300);font:inherit;font-size:14px;cursor:pointer;text-align:left;transition:background .12s" onClick="{{ goDrill }}"><i class="ph ph-sun-horizon" style="font-size:18px"></i>Daily Drill</button>
+      <button class="asc-nav-hover {{ navPlaygroundCls }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:9px 12px;border-radius:8px;border:none;background:transparent;color:var(--color-neutral-300);font:inherit;font-size:14px;cursor:pointer;text-align:left;transition:background .12s" onClick="{{ goPlayground }}"><i class="ph ph-code" style="font-size:18px"></i>Playground</button>
       <button class="asc-nav-hover {{ navProgressCls }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:9px 12px;border-radius:8px;border:none;background:transparent;color:var(--color-neutral-300);font:inherit;font-size:14px;cursor:pointer;text-align:left;transition:background .12s" onClick="{{ goProgress }}"><i class="ph ph-trend-up" style="font-size:18px"></i>Progress</button>
     </nav>
 
@@ -119,6 +124,7 @@ button{font-family:inherit}
       <button class="btn btn-icon btn-secondary" onClick="{{ toggleTheme }}" title="{{ themeTitle }}"><i class="ph {{ themeIcon }}"></i></button>
       <button class="asc-chip" onClick="{{ goDrill }}"><i class="ph ph-sun-horizon"></i>Today's 10</button>
       <button class="asc-chip" onClick="{{ openChat }}"><i class="ph ph-sparkle" style="color:var(--color-accent)"></i>Ask Ascendra</button>
+      <button class="asc-chip {{ notesChipCls }}" onClick="{{ toggleNotes }}"><i class="ph ph-note-pencil"></i>Notes &amp; TODOs</button>
     </div>
 
     <!-- ═══ HOME / OVERVIEW ═══ -->
@@ -233,7 +239,14 @@ button{font-family:inherit}
         </div>
         <div class="card elev-sm" style="padding:20px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><i class="ph ph-warning-circle" style="font-size:17px;color:var(--color-neutral-400)"></i><span class="card-title" style="font-size:15px">Priority gaps to close</span></div>
-          <div style="display:flex;flex-wrap:wrap;gap:7px"><sc-for list="{{ gapTags }}" as="g" hint-placeholder-count="5"><span class="tag tag-outline">{{ g }}</span></sc-for></div>
+          <div style="display:flex;flex-direction:column">
+            <sc-for list="{{ gapTags }}" as="g" hint-placeholder-count="5">
+              <a class="asc-res" href="{{ g.url }}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:8px 0;box-shadow:inset 0 -1px 0 var(--color-divider)" title="Open resource in a new tab">
+                <span class="tag tag-outline" style="flex:none">{{ g.label }}</span>
+                <span class="asc-res-lnk" style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--color-accent)">{{ g.res }}<i class="ph ph-arrow-square-out"></i></span>
+              </a>
+            </sc-for>
+          </div>
           <p class="text-muted" style="font-size:11px;margin:12px 0 0">Updated automatically as mock interviews surface new weaknesses.</p>
           <button class="btn btn-primary" style="align-self:flex-start;margin-top:12px" onClick="{{ goRoadmap }}">Generate roadmap from gaps</button>
         </div>
@@ -262,7 +275,7 @@ button{font-family:inherit}
               </div>
               <div style="display:flex;flex-direction:column;gap:2px;margin-top:12px">
                 <sc-for list="{{ p.modules }}" as="m" hint-placeholder-count="3">
-                  <div style="display:flex;align-items:center;gap:9px;font-size:13px;padding:6px 0;box-shadow:inset 0 -1px 0 var(--color-divider)"><i class="ph ph-book-open-text" style="color:var(--color-neutral-500)"></i>{{ m }}</div>
+                  <a class="asc-res" href="{{ m.url }}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:9px;font-size:13px;padding:6px 0;box-shadow:inset 0 -1px 0 var(--color-divider)" title="Open resource in a new tab"><i class="ph ph-book-open-text" style="color:var(--color-neutral-500)"></i><span style="flex:1">{{ m.name }}</span><span class="asc-res-lnk" style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--color-accent)">{{ m.res }}<i class="ph ph-arrow-square-out"></i></span></a>
                 </sc-for>
               </div>
             </div>
@@ -275,6 +288,12 @@ button{font-family:inherit}
     <!-- ═══ MOCK INTERVIEW ═══ -->
     <sc-if value="{{ isInterview }}" hint-placeholder-val="{{ false }}">
      <div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+        <button class="asc-chip {{ modeIvCls }}" onClick="{{ setModeIv }}"><i class="ph ph-microphone-stage"></i>Adaptive interview</button>
+        <button class="asc-chip {{ modeCtCls }}" onClick="{{ setModeCt }}"><i class="ph ph-code"></i>Mock coding test</button>
+      </div>
+      <sc-if value="{{ ivModeInterview }}" hint-placeholder-val="{{ true }}">
+      <div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <h1 style="font-size:28px;margin:0">Adaptive mock interview</h1>
         <span class="tag tag-outline">Round {{ ivNum }} of {{ ivTotal }}</span>
@@ -326,6 +345,71 @@ button{font-family:inherit}
           <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap"><button class="btn btn-primary" onClick="{{ goRoadmap }}">View updated roadmap</button><button class="btn btn-secondary" onClick="{{ goGaps }}">See skill gaps</button><button class="btn btn-ghost" onClick="{{ restartIv }}">New session</button></div>
         </div>
       </sc-if>
+      </div>
+      </sc-if>
+
+      <!-- Mock coding test -->
+      <sc-if value="{{ ivModeCoding }}" hint-placeholder-val="{{ false }}">
+       <div>
+        <h1 style="font-size:28px;margin:0 0 4px">Mock coding test</h1>
+        <p class="text-muted" style="margin:0 0 18px;font-size:14px">Solve coding questions under interview conditions. Your result is assessed and feeds straight into your skill gaps and roadmap.</p>
+
+        <sc-if value="{{ ctSetup }}" hint-placeholder-val="{{ true }}">
+          <div class="card elev-md" style="padding:24px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><i class="ph ph-sliders-horizontal" style="font-size:17px;color:var(--color-accent)"></i><span class="card-title" style="font-size:15px">Set up your test</span></div>
+            <p class="text-muted" style="font-size:12.5px;margin:0 0 18px">All fields are optional — anything left on <strong>Random</strong> is picked for you from a mixed pool.</p>
+            <div class="card-kicker">Difficulty</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 16px"><sc-for list="{{ ctLevelChips }}" as="c" hint-placeholder-count="4"><button class="asc-chip {{ c.cls }}" onClick="{{ c.pick }}">{{ c.label }}</button></sc-for></div>
+            <div class="card-kicker">Number of questions</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 16px"><sc-for list="{{ ctCountChips }}" as="c" hint-placeholder-count="4"><button class="asc-chip {{ c.cls }}" onClick="{{ c.pick }}">{{ c.label }}</button></sc-for></div>
+            <div class="card-kicker">Area</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 20px"><sc-for list="{{ ctAreaChips }}" as="c" hint-placeholder-count="5"><button class="asc-chip {{ c.cls }}" onClick="{{ c.pick }}">{{ c.label }}</button></sc-for></div>
+            <button class="btn btn-primary" style="align-self:flex-start" onClick="{{ startCt }}"><i class="ph ph-play"></i>Start coding test</button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ ctActive }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px"><span class="tag tag-outline">Question {{ ctNum }} of {{ ctTotal }}</span><button class="btn btn-ghost" onClick="{{ restartCt }}"><i class="ph ph-x"></i>Abandon test</button></div>
+            <div class="card elev-md" style="padding:22px">
+              <div style="display:flex;gap:8px;margin-bottom:12px"><span class="tag tag-neutral">{{ ctQ.area }}</span><span class="tag tag-outline">{{ ctQ.level }}</span></div>
+              <div style="font-size:17px;line-height:1.5;margin-bottom:14px">{{ ctQ.q }}</div>
+              <div class="field"><label>Your solution</label><textarea class="input" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;min-height:190px;font-size:13px" placeholder="// Write your code here — or draft it in the Playground and paste it back"></textarea></div>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:14px">
+                <button class="btn btn-secondary" onClick="{{ goPlayground }}"><i class="ph ph-code"></i>Open playground</button>
+                <button class="btn btn-primary" style="margin-left:auto" onClick="{{ nextCt }}">{{ ctBtnLabel }}<i class="ph ph-arrow-right"></i></button>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ ctDone }}" hint-placeholder-val="{{ false }}">
+          <div class="card elev-md" style="padding:24px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><span class="tag tag-accent">Assessed · {{ ctScoreLabel }}</span><span class="text-muted" style="font-size:12px">Readiness +3</span></div>
+            <h3 style="font-size:21px;margin:0 0 10px">Test assessed — plan updated</h3>
+            <p style="font-size:14px;margin:0 0 16px;max-width:640px">Solid problem decomposition, but <strong>{{ ctWeak }}</strong> cost you the most time and correctness. It's been added to your skill gaps and a reinforcement phase was appended to your roadmap.</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div style="padding:15px;border-radius:10px;background:var(--color-neutral-900)"><div class="card-kicker">Skill gap added</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px"><span class="tag tag-outline">{{ ctWeak }} (coding)</span></div><a class="asc-res" href="{{ ctWeakUrl }}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--color-accent);margin-top:10px"><span class="asc-res-lnk">{{ ctWeakRes }}</span><i class="ph ph-arrow-square-out"></i></a></div>
+              <div style="padding:15px;border-radius:10px;background:var(--color-neutral-900)"><div class="card-kicker">Roadmap updated</div><div style="font-size:13px;margin-top:9px;display:flex;align-items:center;gap:8px"><i class="ph ph-plus-circle" style="color:var(--color-accent)"></i>Coding-reinforcement phase appended — existing phases kept</div></div>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap"><button class="btn btn-primary" onClick="{{ goRoadmap }}">View updated roadmap</button><button class="btn btn-secondary" onClick="{{ goGaps }}">See skill gaps</button><button class="btn btn-ghost" onClick="{{ restartCt }}">New coding test</button></div>
+          </div>
+        </sc-if>
+       </div>
+      </sc-if>
+     </div>
+    </sc-if>
+
+    <!-- ═══ PLAYGROUND ═══ -->
+    <sc-if value="{{ isPlayground }}" hint-placeholder-val="{{ false }}">
+     <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px">
+        <h1 style="font-size:28px;margin:0">Coding playground</h1>
+        <a class="asc-chip" href="https://codesandbox.io/s/new" target="_blank" rel="noopener" style="text-decoration:none"><i class="ph ph-arrow-square-out"></i>Open full CodeSandbox</a>
+      </div>
+      <p class="text-muted" style="margin:0 0 14px;font-size:14px">Write and run code without leaving your prep. Pick a language below — for multi-file projects, open CodeSandbox in a new tab.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"><sc-for list="{{ pgChips }}" as="c" hint-placeholder-count="4"><button class="asc-chip {{ c.cls }}" onClick="{{ c.pick }}">{{ c.label }}</button></sc-for></div>
+      <div class="card elev-sm" style="padding:0;overflow:hidden"><iframe src="{{ pgSrc }}" style="width:100%;height:620px;border:none;display:block" title="Coding playground"></iframe></div>
      </div>
     </sc-if>
 
@@ -467,7 +551,7 @@ button{font-family:inherit}
             <h1 style="font-size:28px;margin:2px 0 8px">Your plan is ready</h1>
             <p class="text-muted" style="margin:0 auto 22px;font-size:14px;max-width:460px">From your 50-question diagnostic we scored 14 matching skills and {{ gapCount }} gaps, and built your roadmap. Starting readiness <strong style="color:var(--color-accent-200)">68</strong>.</p>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left;margin:0 auto 22px;max-width:540px">
-              <div class="card elev-sm" style="padding:15px"><div class="card-kicker">Skill gaps identified</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px"><sc-for list="{{ gapTags }}" as="g" hint-placeholder-count="5"><span class="tag tag-outline">{{ g }}</span></sc-for></div></div>
+              <div class="card elev-sm" style="padding:15px"><div class="card-kicker">Skill gaps identified</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px"><sc-for list="{{ gapTags }}" as="g" hint-placeholder-count="5"><span class="tag tag-outline">{{ g.label }}</span></sc-for></div></div>
               <div class="card elev-sm" style="padding:15px"><div class="card-kicker">Roadmap created</div><div style="margin-top:9px;display:flex;flex-direction:column;gap:5px"><sc-for list="{{ phases }}" as="p" hint-placeholder-count="4"><span style="font-size:12.5px;display:flex;align-items:center;gap:7px"><i class="ph ph-dot-outline" style="color:var(--color-accent)"></i>{{ p.name }}</span></sc-for></div></div>
             </div>
             <button class="btn btn-primary" onClick="{{ onbFinish }}">Go to my dashboard</button>
@@ -517,6 +601,37 @@ button{font-family:inherit}
 
    </div>
   </main>
+
+  <!-- ░░ NOTES & TODOS ░░ -->
+  <sc-if value="{{ notesOpen }}" hint-placeholder-val="{{ false }}">
+  <aside style="width:296px;flex:none;background:var(--color-surface);box-shadow:-1px 0 0 var(--color-divider);position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;padding:20px 16px;display:flex;flex-direction:column;gap:22px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <i class="ph ph-note-pencil" style="font-size:18px;color:var(--color-accent)"></i>
+      <span class="card-title" style="font-size:15px;flex:1">Notes &amp; TODOs</span>
+      <button class="btn btn-icon" onClick="{{ toggleNotes }}" title="Close panel"><i class="ph ph-x"></i></button>
+    </div>
+    <div>
+      <div class="card-kicker" style="margin-bottom:8px">My notes</div>
+      <textarea class="input" style="min-height:150px;font-size:13px;line-height:1.5" placeholder="Jot down concepts, mistakes to avoid, links…" value="{{ notes }}" onInput="{{ onNotes }}"></textarea>
+      <p class="text-muted" style="font-size:11px;margin:6px 0 0;display:flex;align-items:center;gap:5px"><i class="ph ph-check-circle" style="color:var(--color-accent)"></i>Saved automatically — here whenever you return.</p>
+    </div>
+    <div>
+      <div class="card-kicker" style="margin-bottom:8px">TODOs</div>
+      <div style="display:flex;gap:7px;margin-bottom:8px">
+        <input class="input" placeholder="Add a TODO…" value="{{ todoDraft }}" onInput="{{ onTodoDraft }}" onKeyDown="{{ onTodoKey }}">
+        <button class="btn btn-primary btn-icon" style="flex:none" onClick="{{ addTodo }}" title="Add TODO"><i class="ph ph-plus"></i></button>
+      </div>
+      <sc-for list="{{ todos }}" as="t" hint-placeholder-count="2">
+        <div style="display:flex;align-items:center;gap:9px;padding:8px 2px;box-shadow:inset 0 -1px 0 var(--color-divider)">
+          <button onClick="{{ t.toggle }}" style="background:none;border:none;cursor:pointer;padding:0;color:var(--color-accent);display:flex" title="Toggle done"><i class="ph {{ t.icon }}" style="font-size:17px"></i></button>
+          <span class="{{ t.cls }}" style="flex:1;font-size:13px;line-height:1.4">{{ t.text }}</span>
+          <button onClick="{{ t.remove }}" style="background:none;border:none;cursor:pointer;padding:0;color:var(--color-neutral-500);display:flex" title="Delete"><i class="ph ph-x" style="font-size:13px"></i></button>
+        </div>
+      </sc-for>
+      <sc-if value="{{ noTodos }}" hint-placeholder-val="{{ false }}"><p class="text-muted" style="font-size:12px;margin:6px 0 0">Nothing yet — add prep tasks above.</p></sc-if>
+    </div>
+  </aside>
+  </sc-if>
 </div>
 </sc-if>
 
@@ -578,6 +693,13 @@ class Component extends DCLogic {
     diagTaken: false,
     extraGaps: [],
     extraPhases: [],
+    notesOpen: false,
+    notes: this.readNotes(),
+    todos: this.readTodos(),
+    todoDraft: '',
+    ivMode: 'interview',
+    pgLang: 'java',
+    ctStage: 'setup', ctLevel: null, ctCount: null, ctArea: null, ctQs: [], ctIdx: 0,
   };
 
   PROFILE = {
@@ -590,18 +712,40 @@ class Component extends DCLogic {
       { name: 'Behavioral & Communication', level: 70, target: 82 },
     ],
     weak: ['Concurrency & thread safety', 'Distributed system trade-offs', 'STAR structure in behavioral answers', 'Test design for edge cases'],
-    gapTags: ['Distributed systems', 'System design depth', 'Concurrency', 'Scale-testing', 'Behavioral depth'],
+    gapTags: [
+      { label: 'Distributed systems', res: 'System Design Primer', url: 'https://github.com/donnemartin/system-design-primer' },
+      { label: 'System design depth', res: 'ByteByteGo guides', url: 'https://bytebytego.com' },
+      { label: 'Concurrency', res: 'Jenkov concurrency course', url: 'https://jenkov.com/tutorials/java-concurrency/index.html' },
+      { label: 'Scale-testing', res: 'Grafana k6 docs', url: 'https://grafana.com/docs/k6/latest/' },
+      { label: 'Behavioral depth', res: 'Tech Interview Handbook', url: 'https://www.techinterviewhandbook.org/behavioral-interview/' },
+    ],
   };
 
   PHASES = [
     { name: 'Phase 1 · Foundations', weeks: 'Weeks 1–3', status: 'Complete', state: 'done',
-      modules: ['DSA refresher', 'Language & tooling baseline', 'Resume-mapped diagnostic test'] },
+      modules: [
+        { name: 'DSA refresher', res: 'LeetCode Explore', url: 'https://leetcode.com/explore/' },
+        { name: 'Language & tooling baseline', res: 'Exercism tracks', url: 'https://exercism.org' },
+        { name: 'Resume-mapped diagnostic test', res: 'Grind 75 plan', url: 'https://www.techinterviewhandbook.org/grind75' },
+      ] },
     { name: 'Phase 2 · Test Engineering Depth', weeks: 'Weeks 4–7', status: 'In progress', state: 'active',
-      modules: ['Test strategy & the test pyramid', 'Automation framework design', 'Concurrency & flaky-test debugging'] },
+      modules: [
+        { name: 'Test strategy & the test pyramid', res: 'Martin Fowler — Test Pyramid', url: 'https://martinfowler.com/articles/practical-test-pyramid.html' },
+        { name: 'Automation framework design', res: 'Playwright best practices', url: 'https://playwright.dev/docs/best-practices' },
+        { name: 'Concurrency & flaky-test debugging', res: 'Jenkov concurrency course', url: 'https://jenkov.com/tutorials/java-concurrency/index.html' },
+      ] },
     { name: 'Phase 3 · Distributed Systems & Design', weeks: 'Weeks 8–11', status: 'Upcoming', state: 'next',
-      modules: ['Distributed testing at scale', 'Design for testability', 'Observability & fault injection'] },
+      modules: [
+        { name: 'Distributed testing at scale', res: 'Grafana k6 docs', url: 'https://grafana.com/docs/k6/latest/' },
+        { name: 'Design for testability', res: 'Google SWE Book — Testing', url: 'https://abseil.io/resources/swe-book/html/ch11.html' },
+        { name: 'Observability & fault injection', res: 'Principles of Chaos', url: 'https://principlesofchaos.org' },
+      ] },
     { name: 'Phase 4 · Interview Simulation', weeks: 'Weeks 12–14', status: 'Upcoming', state: 'next',
-      modules: ['Behavioral leadership loop', 'Full mock loop ×3', 'Readiness gate ≥ 85'] },
+      modules: [
+        { name: 'Behavioral leadership loop', res: 'Tech Interview Handbook', url: 'https://www.techinterviewhandbook.org/behavioral-interview/' },
+        { name: 'Full mock loop ×3', res: 'Pramp peer mocks', url: 'https://www.pramp.com' },
+        { name: 'Readiness gate ≥ 85', res: 'interviewing.io', url: 'https://interviewing.io' },
+      ] },
   ];
 
   DRILL = [
@@ -685,11 +829,36 @@ class Component extends DCLogic {
   ];
 
   EXTRA_GAPS = [
-    { short: 'Rate-limiter partitions', long: 'Rate-limiter correctness under network partitions' },
-    { short: 'Impact metrics', long: 'Quantifying impact in behavioral answers' },
+    { short: 'Rate-limiter partitions', long: 'Rate-limiter correctness under network partitions', res: 'System Design Primer', url: 'https://github.com/donnemartin/system-design-primer' },
+    { short: 'Impact metrics', long: 'Quantifying impact in behavioral answers', res: 'Tech Interview Handbook', url: 'https://www.techinterviewhandbook.org/behavioral-interview/' },
   ];
   EXTRA_PHASE = { name: 'Phase 5 · Post-mock reinforcement', weeks: 'Weeks 15–16', status: 'New', state: 'active',
-    modules: ['Distributed rate-limiter deep dive', 'Fault-injection testing lab', 'Targeted follow-up mock on weak areas'] };
+    modules: [
+      { name: 'Distributed rate-limiter deep dive', res: 'System Design Primer', url: 'https://github.com/donnemartin/system-design-primer' },
+      { name: 'Fault-injection testing lab', res: 'Principles of Chaos', url: 'https://principlesofchaos.org' },
+      { name: 'Targeted follow-up mock on weak areas', res: 'Pramp peer mocks', url: 'https://www.pramp.com' },
+    ] };
+
+  CODEPOOL = [
+    { area: 'Arrays & Strings', level: 'Beginner', q: 'Reverse the words in a sentence in place. Handle multiple spaces.' },
+    { area: 'Arrays & Strings', level: 'Intermediate', q: 'Find the longest substring without repeating characters.' },
+    { area: 'Arrays & Strings', level: 'Advanced', q: 'Implement a sliding-window minimum over a stream of integers.' },
+    { area: 'Data Structures', level: 'Beginner', q: 'Detect a cycle in a linked list and return the node where it begins.' },
+    { area: 'Data Structures', level: 'Intermediate', q: 'Design an LRU cache with O(1) get and put.' },
+    { area: 'Data Structures', level: 'Advanced', q: 'Design a time-based key-value store with versioned reads.' },
+    { area: 'Concurrency', level: 'Beginner', q: 'Print numbers 1–100 alternately from two threads, in order.' },
+    { area: 'Concurrency', level: 'Intermediate', q: 'Implement a thread-safe bounded blocking queue.' },
+    { area: 'Concurrency', level: 'Advanced', q: 'Build a token-bucket rate limiter safe under concurrent callers.' },
+    { area: 'Algorithms', level: 'Beginner', q: 'Merge two sorted arrays into one sorted output.' },
+    { area: 'Algorithms', level: 'Intermediate', q: 'Merge overlapping intervals; enumerate the edge cases you test.' },
+    { area: 'Algorithms', level: 'Advanced', q: 'Find the k most frequent elements in a stream using O(k) memory.' },
+  ];
+  CT_RES = {
+    'Arrays & Strings': { res: 'LeetCode — Array problems', url: 'https://leetcode.com/tag/array/' },
+    'Data Structures': { res: 'LeetCode — Design problems', url: 'https://leetcode.com/tag/design/' },
+    'Concurrency': { res: 'LeetCode — Concurrency problems', url: 'https://leetcode.com/tag/concurrency/' },
+    'Algorithms': { res: 'NeetCode roadmap', url: 'https://neetcode.io/roadmap' },
+  };
 
   TREND = [22, 31, 44, 58, 68];
   MONTHS = ['Mar', 'Apr', 'May', 'Jun', 'Jul'];
@@ -713,9 +882,12 @@ class Component extends DCLogic {
   set = (patch) => this.setState(patch);
 
   readTheme() { try { return localStorage.getItem('asc-theme') || 'dark'; } catch (e) { return 'dark'; } }
+  readNotes() { try { return localStorage.getItem('asc-notes') || ''; } catch (e) { return ''; } }
+  readTodos() { try { return JSON.parse(localStorage.getItem('asc-todos') || '[]'); } catch (e) { return []; } }
+  saveTodos(t) { try { localStorage.setItem('asc-todos', JSON.stringify(t)); } catch (e) {} }
   applyTheme() { document.documentElement.setAttribute('data-theme', this.state.theme); }
   componentDidMount() { this.applyTheme(); }
-  componentDidUpdate(_p, prev) { if (prev.theme !== this.state.theme) this.applyTheme(); }
+  componentDidUpdate(_p, prev) { if (!prev || prev.theme !== this.state.theme) this.applyTheme(); }
 
   setField(k, v) { this.setState((s) => ({ form: { ...s.form, [k]: v }, errors: { ...s.errors, [k]: undefined } })); }
   validate(fields) {
@@ -785,11 +957,26 @@ class Component extends DCLogic {
     const ivAtEnd = ivIdx >= ivList.length - 1;
     const ivAreas = Array.from(new Set(this.IVPOOL.map((q) => q.area.split(' · ')[0])));
 
-    // gaps + roadmap grow as mock interviews surface new weaknesses
+    // gaps + roadmap grow as mock interviews and coding tests surface new weaknesses
     const weakAll = role.weak.concat(s.extraGaps.map((g) => g.long));
-    const gapTags = role.gapTags.concat(s.extraGaps.map((g) => g.short));
+    const gapTags = role.gapTags.concat(s.extraGaps.map((g) => ({ label: g.short, res: g.res, url: g.url })));
     const gapCount = role.gapTags.length + s.extraGaps.length;
     const segCls = (lvl) => (s.ivLevel === lvl ? 'asc-chip-on' : '');
+
+    // mock coding test
+    const ctQ = s.ctQs[Math.min(s.ctIdx, Math.max(0, s.ctQs.length - 1))] || { area: '', level: '', q: '' };
+    const ctAtEnd = s.ctIdx >= s.ctQs.length - 1;
+    const ctWeak = s.ctArea || (s.ctQs.length ? s.ctQs[s.ctQs.length - 1].area : 'Concurrency');
+    const ctRes = this.CT_RES[ctWeak] || this.CT_RES['Algorithms'];
+    const ctSolved = Math.max(1, Math.round(s.ctQs.length * 0.6));
+    const ctChip = (key, v, label) => ({ label, cls: s[key] === v ? 'asc-chip-on' : '', pick: () => this.set({ [key]: v }) });
+
+    // notes & todos
+    const addTodo = () => {
+      const v = s.todoDraft.trim(); if (!v) return;
+      const next = s.todos.concat([{ text: v, done: false }]);
+      this.saveTodos(next); this.set({ todos: next, todoDraft: '' });
+    };
 
     return {
       // theme
@@ -887,6 +1074,66 @@ class Component extends DCLogic {
       onbNext: () => this.set({ onbStep: Math.min(2, s.onbStep + 1) }),
       onbBack: () => this.set({ onbStep: Math.max(0, s.onbStep - 1) }),
       onbFinish: () => this.set({ screen: 'home', onbStep: 0 }),
+
+      // interview / coding-test mode
+      ivModeInterview: s.ivMode === 'interview', ivModeCoding: s.ivMode === 'coding',
+      modeIvCls: s.ivMode === 'interview' ? 'asc-chip-on' : '', modeCtCls: s.ivMode === 'coding' ? 'asc-chip-on' : '',
+      setModeIv: () => this.set({ ivMode: 'interview' }), setModeCt: () => this.set({ ivMode: 'coding' }),
+      ctSetup: s.ctStage === 'setup', ctActive: s.ctStage === 'active', ctDone: s.ctStage === 'done',
+      ctLevelChips: [[null, 'Random'], ['Beginner', 'Beginner'], ['Intermediate', 'Intermediate'], ['Advanced', 'Advanced']].map(([v, l]) => ctChip('ctLevel', v, l)),
+      ctCountChips: [[null, 'Random'], [3, '3 questions'], [5, '5 questions'], [10, '10 questions']].map(([v, l]) => ctChip('ctCount', v, l)),
+      ctAreaChips: [[null, 'Random'], ['Arrays & Strings', 'Arrays & Strings'], ['Data Structures', 'Data Structures'], ['Concurrency', 'Concurrency'], ['Algorithms', 'Algorithms']].map(([v, l]) => ctChip('ctArea', v, l)),
+      ctQ, ctNum: Math.min(s.ctIdx, Math.max(0, s.ctQs.length - 1)) + 1, ctTotal: s.ctQs.length,
+      ctBtnLabel: ctAtEnd ? 'Finish & assess' : 'Submit & next',
+      startCt: () => {
+        let pool = this.CODEPOOL.filter((q) => (!s.ctLevel || q.level === s.ctLevel) && (!s.ctArea || q.area === s.ctArea));
+        if (!pool.length) pool = this.CODEPOOL.slice();
+        pool = pool.slice().sort(() => Math.random() - 0.5);
+        this.set({ ctQs: pool.slice(0, Math.min(s.ctCount || 5, pool.length)), ctIdx: 0, ctStage: 'active' });
+      },
+      nextCt: () => {
+        if (!ctAtEnd) { this.set({ ctIdx: s.ctIdx + 1 }); return; }
+        const gap = { short: ctWeak + ' (coding)', long: 'Coding practice: ' + ctWeak, res: ctRes.res, url: ctRes.url };
+        const phase = { name: 'Phase ' + (this.PHASES.length + s.extraPhases.length + 1) + ' · Coding reinforcement — ' + ctWeak, weeks: 'Next 2 weeks', status: 'New', state: 'active',
+          modules: [
+            { name: ctWeak + ' problem set (15 problems)', res: ctRes.res, url: ctRes.url },
+            { name: 'Timed re-test on ' + ctWeak, res: 'Mock coding test', url: 'https://leetcode.com/assessment/' },
+          ] };
+        this.set({
+          ctStage: 'done',
+          extraGaps: s.extraGaps.some((g) => g.short === gap.short) ? s.extraGaps : s.extraGaps.concat([gap]),
+          extraPhases: s.extraPhases.some((p) => p.name.indexOf(ctWeak) >= 0) ? s.extraPhases : s.extraPhases.concat([phase]),
+        });
+      },
+      restartCt: () => this.set({ ctStage: 'setup', ctQs: [], ctIdx: 0 }),
+      ctWeak, ctWeakRes: ctRes.res, ctWeakUrl: ctRes.url,
+      ctScoreLabel: ctSolved + ' / ' + s.ctQs.length + ' solved',
+
+      // playground
+      isPlayground: s.screen === 'playground',
+      goPlayground: () => this.set({ screen: 'playground' }),
+      navPlaygroundCls: s.screen === 'playground' ? 'asc-nav-active' : '',
+      pgSrc: 'https://onecompiler.com/embed/' + s.pgLang + '?theme=' + (s.theme === 'dark' ? 'dark' : 'light') + '&hideNew=true',
+      pgChips: [['java', 'Java'], ['python', 'Python'], ['javascript', 'JavaScript'], ['cpp', 'C++']].map(([id, label]) => ({ label, cls: s.pgLang === id ? 'asc-chip-on' : '', pick: () => this.set({ pgLang: id }) })),
+
+      // notes & todos
+      notesOpen: s.notesOpen,
+      notesChipCls: s.notesOpen ? 'asc-chip-on' : '',
+      toggleNotes: () => this.set({ notesOpen: !s.notesOpen }),
+      notes: s.notes,
+      onNotes: (e) => { const v = e.target.value; try { localStorage.setItem('asc-notes', v); } catch (e2) {} this.set({ notes: v }); },
+      todoDraft: s.todoDraft,
+      onTodoDraft: (e) => this.set({ todoDraft: e.target.value }),
+      onTodoKey: (e) => { if (e.key === 'Enter') addTodo(); },
+      addTodo,
+      noTodos: s.todos.length === 0,
+      todos: s.todos.map((t, i) => ({
+        text: t.text,
+        cls: t.done ? 'asc-todo-done' : '',
+        icon: t.done ? 'ph-check-square' : 'ph-square',
+        toggle: () => { const next = s.todos.map((x, j) => (j === i ? { ...x, done: !x.done } : x)); this.saveTodos(next); this.set({ todos: next }); },
+        remove: () => { const next = s.todos.filter((_, j) => j !== i); this.saveTodos(next); this.set({ todos: next }); },
+      })),
 
       // chat
       chatOpen: s.chatOpen, chatExpanded: s.chatExpanded,

@@ -19,7 +19,8 @@ Client-side demo auth — no backend:
 
 ## State reset
 
-App state persists in localStorage keys `asc-auth`, `asc-theme`, `asc-prep`.
+App state persists in localStorage keys `asc-auth`, `asc-theme`, `asc-prep`,
+`asc-notes`, `asc-todos`.
 To reset between scenarios run in the browser:
 `localStorage.clear(); location.reload()` (javascript_tool), or verify
 persistence by NOT clearing and reloading.
@@ -27,8 +28,8 @@ persistence by NOT clearing and reloading.
 ## Routes
 
 `/login`, `/register`, `/onboarding`, `/onboarding/diagnostic`, and under the
-authed shell: `/` (Overview), `/gaps`, `/roadmap`, `/interview`, `/drill`,
-`/progress`. Unknown → `/`.
+authed shell: `/` (Overview), `/gaps`, `/roadmap`, `/interview` (interview +
+coding-test modes), `/playground`, `/drill`, `/progress`. Unknown → `/`.
 
 ## Smoke checklist (full pass)
 
@@ -43,6 +44,12 @@ authed shell: `/` (Overview), `/gaps`, `/roadmap`, `/interview`, `/drill`,
    card; Roadmap shows Phase 5; Gaps shows 7; Overview readiness 72.
 7. Progress: trend chart + 4-row history table.
 8. Chat: launcher on authed screens only; open/expand/close; quick chips navigate.
-9. Theme toggle: flip to light — every screen re-skins, no unreadable text;
-   flip back. Theme persists on reload.
-10. Console: zero errors on every screen (`read_console_messages` onlyErrors).
+9. Coding test (on /interview): mode chip swaps; setup → active → assessed;
+   gap "{area} (coding)" + reinforcement phase appear; readiness +3.
+10. Playground: language chips swap the OneCompiler embed; theme-aware.
+11. Notes & TODOs: TopBar chip toggles panel; notes + todos survive reload;
+    add/toggle/delete todos.
+12. Gap rows (/gaps) and roadmap modules are external resource links (new tab).
+13. Theme toggle: flip to light — every screen re-skins, no unreadable text;
+    flip back. Theme persists on reload.
+14. Console: zero errors on every screen (`read_console_messages` onlyErrors).

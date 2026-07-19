@@ -50,8 +50,9 @@ primary flex-1 "Take diagnostic now" (Play icon) → `/onboarding/diagnostic`.
 `CheckCircle` accent 30px; kicker "Step 3 of 3 · Plan curated"; h1 "Your plan is ready";
 sub "From your 50-question diagnostic we scored 14 matching skills and {gapCount}
 gaps, and built your roadmap. Starting readiness **68**." Two cards side by side:
-"Skill gaps identified" (outline Tags from profile gapTags) and "Roadmap created"
-(phase names with `DotOutline` accent icons). Primary Button "Go to my dashboard".
+"Skill gaps identified" (outline Tags — the `label` of each profile gap tag;
+plain tags here, no resource links) and "Roadmap created" (phase names with
+`DotOutline` accent icons). Primary Button "Go to my dashboard".
 
 **Step 3 — locked** (!diagTaken): centered; 64px circle neutral-900 with
 `LockSimple`; kicker "Step 3 of 3"; h1 "Your plan isn't curated yet"; sub "We

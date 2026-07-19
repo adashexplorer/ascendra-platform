@@ -10,6 +10,7 @@ import { OverviewScreen } from './features/overview/OverviewScreen'
 import { SkillGapsScreen } from './features/skill-gaps/SkillGapsScreen'
 import { RoadmapScreen } from './features/roadmap/RoadmapScreen'
 import { MockInterviewScreen } from './features/mock-interview/MockInterviewScreen'
+import { PlaygroundScreen } from './features/playground/PlaygroundScreen'
 import { DailyDrillScreen } from './features/daily-drill/DailyDrillScreen'
 import { ProgressScreen } from './features/progress/ProgressScreen'
 
@@ -82,6 +83,7 @@ export const routes = [
       { path: 'gaps', element: <SkillGapsScreen /> },
       { path: 'roadmap', element: <RoadmapScreen /> },
       { path: 'interview', element: <MockInterviewScreen /> },
+      { path: 'playground', element: <PlaygroundScreen /> },
       { path: 'drill', element: <DailyDrillScreen /> },
       { path: 'progress', element: <ProgressScreen /> },
     ],
