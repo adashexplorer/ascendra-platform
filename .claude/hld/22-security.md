@@ -1,7 +1,7 @@
 # HLD 22 — Security
 
 Status: **Active** · Owner: hld-architect
-Requirements served: FR-01, FR-02, FR-18, FR-20 · NFR-06, NFR-10 · BR-6, BR-7
+Requirements served: FR-01, FR-02, FR-18, FR-20, FR-21, FR-23 · NFR-06, NFR-10 · BR-6, BR-7
 
 ---
 
@@ -76,6 +76,8 @@ retention, and log-content rules in `21-data-architecture.md` §5.
 | T-6 | **PII in prompts** — resume/answer text sent to external LLM providers beyond necessity, or leaked via logs/caches | FR-04…FR-16, NFR-06 | data-minimization per use case (scorers get the single answer + rubric, not the whole profile); chat context capped to retrieved chunks; redaction of emails/phones/addresses from `plan_state` + `transcript` chunks at ingestion; provider DPAs + zero-retention flags where offered; prompts never logged (digests only); response cache excludes personalized calls | `20-ai-layer.md` §6.3; `21-data-architecture.md` §5 |
 | T-7 | **LLM key protection** — provider key theft = spend + data access | all AI FRs | keys only in SVC-AI via External Secrets; egress network policy (only SVC-AI → provider endpoints); spend anomaly alerts (NFR-09) double as compromise detection; rotation ≤ 90 d | §3 here; `23-observability.md` §4 |
 | T-8 | **Budget-bypass abuse** — scripted clients burning tokens (cost DoS) | NFR-07 | gateway per-user rate limits + Redis token metering pre-call; MCP tokens count against the same user budget; 80% alerts | `20-ai-layer.md` §6.3 |
+| T-9 | **Malicious/compromised external resource links** — a learning-resource URL is hallucinated, hijacked, or points to phishing/malware | FR-21 (gap + module links opened by users) | closed-world curation: AI selects catalog ids only, never generates URLs (ADR-011); `learning_resource.domain` checked against the allowlist on every write; catalog entries admin-reviewed with an `active` kill switch; SPA renders links with `target="_blank" rel="noopener"` | `14-roadmap-service.md`; `20-ai-layer.md` §6.2 |
+| T-10 | **Third-party playground iframe** — embedded runner origin (OneCompiler/CodeSandbox) turns hostile or is spoofed, exfiltrating tokens or framing attacks | FR-23 (SPA-side embed) | CSP `frame-src`/`connect-src` allowlist at SVC-GW limited to `onecompiler.com` + `codesandbox.io` (ADR-011); the embed runs entirely on the SPA side — no JWT, cookie, or postMessage channel is exposed to the embed origin; playground code the user wants assessed is pasted back and submitted through authenticated FR-22 APIs | `10-api-gateway.md` |
 
 ---
 

@@ -8,7 +8,9 @@ Ascendra's backend turns the current mock-serviced SPA into a real, AI-first
 platform: a candidate uploads a resume, an LLM extracts a skill inventory, a
 personalized 50-question diagnostic establishes a baseline readiness score, and
 the platform generates a phased roadmap that **evolves append-only** as daily
-drills and adaptive mock interviews surface new weaknesses. A per-user
+drills, adaptive mock interviews, and mock coding tests surface new weaknesses
+— every gap and roadmap module carrying a learning resource selected from an
+allowlisted catalog (ADR-011). A per-user
 RAG-grounded chat ("Ask Ascendra") and an MCP server expose the same
 capabilities conversationally and to external AI clients.
 
@@ -23,9 +25,9 @@ visible "scoring" state (ADR-005), which also gives LLM-outage resilience
 (NFR-11) for free. GDPR erasure runs as a Kafka saga coordinated by SVC-PROF
 (ADR-008).
 
-Requirements are catalogued once in `01-requirements.md` (BR-1…8, FR-01…20,
+Requirements are catalogued once in `01-requirements.md` (BR-1…8, FR-01…24,
 NFR-01…12) and referenced everywhere by ID; principles and decisions live in
-`02-architecture-principles.md` (ADR-001…010).
+`02-architecture-principles.md` (ADR-001…011).
 
 ## 2. C4 — System context
 
@@ -101,11 +103,11 @@ schema only (ADR-003).
 
 | SVC-ID | Service name | Doc | Responsibility (one line) |
 | --- | --- | --- | --- |
-| SVC-GW | api-gateway | `10-api-gateway.md` | Single edge: routing, JWT validation, rate limiting, SSE pass-through. |
+| SVC-GW | api-gateway | `10-api-gateway.md` | Single edge: routing, JWT validation, rate limiting, SSE pass-through, embed-origin CSP (FR-23). |
 | SVC-ID | identity-service | `11-identity-service.md` | Keycloak-fronted accounts, token lifecycle, plan/tier entitlements. |
-| SVC-PROF | profile-service | `12-profile-service.md` | Profile, resume upload/storage, skill inventory (via SVC-AI), erasure saga coordinator. |
-| SVC-ASSESS | assessment-service | `13-assessment-service.md` | Question banks + all session lifecycles (diagnostic/drill/mock); delegates scoring to SVC-AI. |
-| SVC-ROAD | roadmap-service | `14-roadmap-service.md` | Gap store + phased roadmap; append-only evolution from events. |
+| SVC-PROF | profile-service | `12-profile-service.md` | Profile, resume upload/storage, skill inventory (via SVC-AI), notes & TODOs (FR-24), erasure saga coordinator. |
+| SVC-ASSESS | assessment-service | `13-assessment-service.md` | Question banks + all session lifecycles (diagnostic/drill/mock/coding); delegates scoring to SVC-AI. |
+| SVC-ROAD | roadmap-service | `14-roadmap-service.md` | Gap store + phased roadmap + allowlisted resource catalog (FR-21); append-only evolution from events. |
 | SVC-PROG | progress-service | `15-progress-service.md` | Readiness score, trend, session-history projections from events. |
 | SVC-AI | ai-orchestrator-service | `16-ai-orchestrator-service.md` | ALL LLM work: chat/RAG, extraction, scoring, generation, MCP server, token budgets. |
 | SVC-NOTIF | notification-service | `17-notification-service.md` | **Future** — daily drill delivery and schedule reminders (FR-19). |
@@ -117,12 +119,12 @@ schema only (ADR-003).
 | SPA / MCP client | SVC-GW | All external traffic (REST, SSE, MCP) | all |
 | SVC-GW | SVC-ID…SVC-AI | Route table in `10-api-gateway.md` | all |
 | SVC-PROF | SVC-AI | Submit resume-extraction job (202; result via Kafka) | FR-04 |
-| SVC-ASSESS | SVC-AI | Diagnostic question generation; drill feedback (sync ≤ 5 s); adaptive mock follow-ups | FR-05, FR-12, FR-13 |
+| SVC-ASSESS | SVC-AI | Diagnostic question generation; drill feedback (sync ≤ 5 s); adaptive mock follow-ups; resource curation for surfaced gaps | FR-05, FR-12, FR-13, FR-21 |
 | SVC-ASSESS | SVC-PROF | Read skill inventory + target role | FR-05, FR-08 |
 | SVC-ASSESS | SVC-PROG | Read recent performance for drill selection | FR-11 |
 | SVC-ASSESS | SVC-ROAD | Read active phase focus for drill selection | FR-11 |
 | SVC-ROAD | SVC-AI | Generate roadmap phases / appended-phase content | FR-09, FR-10 |
-| SVC-AI | SVC-PROF, SVC-ROAD, SVC-PROG, SVC-ASSESS | Read user state for RAG refresh, quick actions, MCP tool backing | FR-16, FR-17, FR-18 |
+| SVC-AI | SVC-PROF, SVC-ROAD, SVC-PROG, SVC-ASSESS | Read user state for RAG refresh, quick actions, MCP tool backing; read resource-catalog candidates for curation | FR-16, FR-17, FR-18, FR-21 |
 | SVC-ID | Keycloak | Admin API (registration, entitlement attributes) | FR-01, FR-02 |
 
 Service-to-service calls carry propagated user JWTs plus a service credential
@@ -136,11 +138,11 @@ awaiting scoring" fact is `EVT-AITaskRequested(taskType=diagnostic-scoring)`.
 
 | Event | Producer | Consumers | Payload gist | FRs |
 | --- | --- | --- | --- | --- |
-| EVT-AITaskRequested | SVC-PROF, SVC-ASSESS | SVC-AI | `taskId`, `userId`, `taskType` (resume-extraction \| diagnostic-scoring \| mock-scoring \| drill-scoring-fallback), input refs | FR-04, FR-07, FR-14, NFR-11 |
-| EVT-AITaskCompleted | SVC-AI | SVC-PROF, SVC-ASSESS (by taskType) | `taskId`, structured LLM output (JSON-schema-validated), audit record ref (NFR-10) | FR-04, FR-07, FR-14 |
+| EVT-AITaskRequested | SVC-PROF, SVC-ASSESS | SVC-AI | `taskId`, `userId`, `taskType` (resume-extraction \| diagnostic-scoring \| mock-scoring \| coding-scoring \| drill-scoring-fallback), input refs | FR-04, FR-07, FR-14, FR-22, NFR-11 |
+| EVT-AITaskCompleted | SVC-AI | SVC-PROF, SVC-ASSESS (by taskType) | `taskId`, structured LLM output (JSON-schema-validated), audit record ref (NFR-10) | FR-04, FR-07, FR-14, FR-22 |
 | EVT-ResumeParsed | SVC-PROF | SVC-ASSESS, SVC-AI | `userId`, `resumeId`, skill-inventory version + skills[] (name, level, evidence) | FR-04, FR-05 |
-| EVT-SessionScored | SVC-ASSESS | SVC-PROG, SVC-AI | `sessionId`, `userId`, `kind` (diagnostic \| drill \| mock), score, per-competency levels, focus areas | FR-07, FR-12, FR-14, FR-15 |
-| EVT-GapSurfaced | SVC-ASSESS | SVC-ROAD, SVC-AI | `userId`, `sourceSessionId`, gaps[] (short, long, severity, competency) | FR-08, FR-10, FR-14 |
+| EVT-SessionScored | SVC-ASSESS | SVC-PROG, SVC-AI | `sessionId`, `userId`, `kind` (diagnostic \| drill \| mock \| coding), score, per-competency levels, focus areas | FR-07, FR-12, FR-14, FR-15, FR-22 |
+| EVT-GapSurfaced | SVC-ASSESS | SVC-ROAD, SVC-AI | `userId`, `sourceSessionId`, gaps[] (short, long, severity, competency, `resourceId` — allowlisted catalog ref, FR-21) | FR-08, FR-10, FR-14, FR-21, FR-22 |
 | EVT-PhaseAppended | SVC-ROAD | SVC-PROG, SVC-AI, SVC-NOTIF* | `userId`, `phaseId`, `sourceSessionId`, phase summary | FR-10 |
 | EVT-ReadinessUpdated | SVC-PROG | SVC-AI, SVC-NOTIF* | `userId`, new readiness, delta, trigger session | FR-15, BR-4 |
 | EVT-UserErased | SVC-PROF | SVC-ID, SVC-ASSESS, SVC-ROAD, SVC-PROG, SVC-AI, SVC-NOTIF | `userId`, `erasureId`, deadline — tombstone; each consumer purges its data | FR-20 |
@@ -181,7 +183,7 @@ Deviations require an ADR (`02-architecture-principles.md`).
 | --- | --- | --- |
 | `00-hld-overview.md` | Architecture overview (this doc) | Active |
 | `01-requirements.md` | BR/FR/NFR catalog + traceability | Active |
-| `02-architecture-principles.md` | Principles + ADR-001…010 | Active |
+| `02-architecture-principles.md` | Principles + ADR-001…011 | Active |
 | `10-api-gateway.md` | SVC-GW design | Active |
 | `11-identity-service.md` | SVC-ID design | Active |
 | `12-profile-service.md` | SVC-PROF design | Active |

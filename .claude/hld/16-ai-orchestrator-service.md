@@ -11,8 +11,9 @@ Status: **Active (outline)** · Template: `_TEMPLATE-service.md` · IDs per `01-
 ## Responsibility
 
 SVC-AI owns ALL LLM interaction for the platform (ADR-002): resume skill
-extraction, diagnostic question generation, drill/diagnostic/mock scoring,
-adaptive follow-up generation, roadmap phase-content generation, the RAG-
+extraction, diagnostic question generation, drill/diagnostic/mock/coding
+scoring, adaptive follow-up generation, roadmap phase-content generation,
+learning-resource curation (catalog selection only, ADR-011), the RAG-
 grounded "Ask Ascendra" chat with quick actions, the platform MCP server
 (ADR-007), embeddings + the pgvector store (ADR-003, ADR-006), per-user token
 budgeting (ADR-010), and the NFR-10 AI audit store. It deliberately does NOT
@@ -29,6 +30,8 @@ does NOT decide *when* AI work happens (domain services trigger it).
 | FR-07, FR-12, FR-14 | Diagnostic / drill / mock scoring | contributor (executes; SVC-ASSESS owns lifecycle) |
 | FR-09, FR-10 | Roadmap phase content generation | contributor (for SVC-ROAD) |
 | FR-13 | Adaptive mock follow-ups | contributor (for SVC-ASSESS) |
+| FR-21 | Resource curation — selection from the allowlisted catalog only | contributor (`ResourceCurator` AiService; never free-generates URLs, ADR-011) |
+| FR-22 | Coding-solution scoring | contributor (`CodeScorer` AiService; taskType `coding-scoring` for SVC-ASSESS) |
 | FR-16 | RAG-grounded streaming chat | owner |
 | FR-17 | Quick actions with chat responses | owner |
 | FR-18 | Authenticated MCP server | owner |
@@ -50,7 +53,8 @@ internal endpoints are service-to-service only):
 | POST `/internal/generate/questions` | Diagnostic question set from inventory + role (FR-05) | service (SVC-ASSESS) |
 | POST `/internal/generate/followup` | Adapted mock follow-up from session context (FR-13) | service (SVC-ASSESS) |
 | POST `/internal/score/drill` | Sync drill scoring ≤ 5 s (FR-12, ADR-005) | service (SVC-ASSESS) |
-| POST `/internal/generate/phase` | Phase content from gap batch (FR-09/FR-10) | service (SVC-ROAD) |
+| POST `/internal/generate/phase` | Phase content from gap batch (FR-09/FR-10) — modules reference catalog resource ids (FR-21) | service (SVC-ROAD) |
+| POST `/internal/curate/resource` | `ResourceCurator`: pick the best catalog resource for a gap/area — selection over `GET /internal/resources` candidates, closed-world (FR-21, ADR-011) | service (SVC-ASSESS, SVC-ROAD) |
 | GET `/internal/audit/{auditRef}` | AI audit record retrieval (NFR-10 dispute/review) | service / admin |
 
 Heavy jobs (extraction, diagnostic/mock scoring) arrive via Kafka, not REST —
@@ -62,7 +66,7 @@ see Events.
 | --- | --- | --- |
 | publishes | EVT-AITaskCompleted | on finishing a durable AI task — structured, JSON-schema-validated output + `auditRef`; routed back to requester by `taskType` |
 | publishes | EVT-UserErasureAcked | after purging the user's embeddings, chat history, and audit artifacts |
-| consumes | EVT-AITaskRequested | execute resume-extraction / diagnostic-scoring / mock-scoring / drill-scoring-fallback; idempotent on `taskId`; consumer lag is the NFR-11 queue |
+| consumes | EVT-AITaskRequested | execute resume-extraction / diagnostic-scoring / mock-scoring / coding-scoring (`CodeScorer`, FR-22) / drill-scoring-fallback; idempotent on `taskId`; consumer lag is the NFR-11 queue |
 | consumes | EVT-ResumeParsed, EVT-SessionScored, EVT-GapSurfaced, EVT-PhaseAppended, EVT-ReadinessUpdated | refresh/re-embed the user's RAG context incrementally so chat "knows the plan" without sync fan-out reads |
 | consumes | EVT-UserErased | hard-delete embeddings (pgvector rows by `user_id`), chat transcripts, audit records past legal hold; ack |
 

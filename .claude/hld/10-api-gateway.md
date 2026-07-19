@@ -18,6 +18,7 @@ controls chat streaming, NFR-01).
 | FR-01 | OIDC auth, token validation for all traffic | contributor (validates JWTs issued via SVC-ID/Keycloak) |
 | FR-16 | Streamed chat responses | contributor (SSE pass-through, no buffering) |
 | FR-18 | MCP server exposure | contributor (routes + rate-limits MCP traffic to SVC-AI) |
+| FR-23 | Coding playground external embeds | owner (edge CSP: `frame-src`/`connect-src` allowlist for `onecompiler.com` and `codesandbox.io` on SPA-serving responses — external embed, no domain service; T-10 in `22-security.md`) |
 | NFR-02 | Sync API ≤ 300 ms p95 at the gateway | owner of the measurement point |
 | NFR-05 | Stateless horizontal scaling; burst absorption | owner at the edge (rate limiting → queue-friendly backpressure) |
 | NFR-07 | Token budgets (request-level backstop) | contributor (per-tier request rate limits; token metering itself is SVC-AI, ADR-010) |

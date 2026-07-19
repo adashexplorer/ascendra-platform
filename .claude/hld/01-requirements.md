@@ -1,6 +1,6 @@
 # HLD 01 — Requirements catalog
 
-Status: **Active** · Owner: hld-architect · Sources: `.claude/specs/00-platform.md` … `.claude/specs/10-chat-agent.md`
+Status: **Active** · Owner: hld-architect · Sources: `.claude/specs/00-platform.md` … `.claude/specs/12-notes-todos.md`
 
 The frontend specs are the functional truth. Today the UI fakes every capability
 with a mock service layer (`ascendra-frontend/src/services/` fixtures + localStorage); this
@@ -49,12 +49,16 @@ Statement form: "The system shall …". Source = frontend spec that demands it
 | FR-12 | score each drill answer with an LLM and return structured feedback (score /10, "Strong" and "Improve" commentary) that feeds back into readiness and future selection. | spec 08 | M |
 | FR-13 | run adaptive mock interview sessions: question pool drawn from the user's gap areas, filterable by level, with AI follow-up questions adapted to the user's previous answers in the session. | spec 07 | M |
 | FR-14 | score a finished mock session (overall /5), derive newly surfaced skill gaps, trigger roadmap phase append (FR-10) and a readiness delta — exactly once per session. | spec 07 | M |
-| FR-15 | record every scored session (drills, mocks, diagnostic) and serve readiness trend over time plus session history. | specs 04, 09 | M |
+| FR-15 | record every scored session (drills, mocks, coding tests, diagnostic) and serve readiness trend over time plus session history. | specs 04, 09 | M |
 | FR-16 | provide the "Ask Ascendra" chat: LLM responses grounded via RAG in the *requesting user's own* plan, gaps, readiness, and session data, streamed token-by-token. | spec 10 | M |
 | FR-17 | return actionable quick actions with chat responses (deep links such as start drill, view gaps, schedule mock) derived from the user's current state. | spec 10 | S |
 | FR-18 | expose platform capabilities (readiness, gaps, roadmap, drill/mock initiation) as an authenticated MCP server so external AI clients can act on the user's behalf. | BR-8 | S |
 | FR-19 | deliver the daily drill and session reminders via notification channels (e-mail/push) on a per-user morning schedule. | specs 04, 08 *(future-marked: UI copy only — "delivered every morning", "Mock loop · Friday 9:00")* | C |
 | FR-20 | support account-level data export and hard deletion (resume, answers, embeddings, AI artifacts) across all services within the compliance window. | BR-7 | M |
+| FR-21 | attach a curated learning resource (title + URL) drawn from an allowlisted resource catalog to every skill gap and roadmap module; gaps surfaced at runtime (mock/coding assessments) get a resource attached at creation — resources are selected from the catalog, never free-generated (ADR-011). | specs 05, 06 (v2) | S |
+| FR-22 | run configurable mock coding tests — difficulty/count/area, defaulting random/5/mixed — drawn from a coding-question bank; score submitted solutions with an LLM; on completion add an area-scoped coding gap (with resource, FR-21), append a coding-reinforcement roadmap phase (FR-10), and apply a computed readiness delta (~+3 scale) — exactly once per area. | spec 07 (v2) | M |
+| FR-23 | provide the coding playground via third-party embeds (OneCompiler iframe, CodeSandbox link-out), language + theme aware. **External embed — no domain service**: backend involvement is limited to allowlisting embed origins in the edge CSP (SVC-GW) and, Could, usage telemetry to SVC-PROG. | spec 11 | C |
+| FR-24 | store per-user free-form notes (autosave, last-write-wins) and a TODO list (add/toggle/delete) server-side so they follow the user across devices, included in data export and erasure (FR-20). | spec 12 | S |
 
 ---
 
@@ -65,17 +69,17 @@ Every target is testable; a target you can't measure is not a requirement.
 | ID | Category | Requirement (quantified) | Applies to |
 | --- | --- | --- | --- |
 | NFR-01 | Latency — chat | Chat first token ≤ 1.5 s p95 from request receipt; sustained streaming ≥ 20 tokens/s median; full RAG retrieval ≤ 300 ms of that budget. | FR-16 |
-| NFR-02 | Latency — sync APIs | Non-LLM synchronous API calls (profile, roadmap, trend, history, drill fetch) ≤ 300 ms p95, ≤ 800 ms p99 at the gateway. | FR-02…FR-11, FR-15 |
-| NFR-03 | Latency — AI scoring | Drill-answer feedback ≤ 5 s p95 (synchronous). Mock-session and diagnostic scoring ≤ 15 s p95 / ≤ 45 s p99, delivered asynchronously with a visible "scoring" state. | FR-07, FR-12, FR-14 |
+| NFR-02 | Latency — sync APIs | Non-LLM synchronous API calls (profile, roadmap, trend, history, drill fetch, notes/todos writes) ≤ 300 ms p95, ≤ 800 ms p99 at the gateway. | FR-02…FR-11, FR-15, FR-24 |
+| NFR-03 | Latency — AI scoring | Drill-answer feedback ≤ 5 s p95 (synchronous). Mock-session, coding-test, and diagnostic scoring ≤ 15 s p95 / ≤ 45 s p99, delivered asynchronously with a visible "scoring" state. | FR-07, FR-12, FR-14, FR-22 |
 | NFR-04 | Availability | 99.5% monthly for core APIs (auth, profile, roadmap, progress). AI features may degrade (NFR-11) without counting against core availability. RPO ≤ 15 min, RTO ≤ 1 h. | all |
 | NFR-05 | Scalability | All services stateless and horizontally scalable (K8s HPA); design point 10k DAU, burst 10× on AI endpoints via queueing rather than overprovisioning. | all |
 | NFR-06 | Security & privacy | Resumes and answers encrypted at rest (AES-256) and in transit (TLS 1.3); RAG retrieval hard-filtered by `user_id` metadata — cross-user retrieval must be impossible by construction, verified by an automated isolation test in CI; GDPR-style erasure completed ≤ 30 days of request (FR-20). | FR-03, FR-16, FR-20 |
-| NFR-07 | LLM cost | Budget ≤ 40k LLM tokens per active user per day across all features; prompt/system-prompt caching hit rate ≥ 30%; per-feature token metering enforced with soft limits per tier (BR-6). | FR-04…FR-17 |
-| NFR-08 | LLM portability | LLM provider swappable (Anthropic ⇄ OpenAI ⇄ Ollama) via configuration only — zero application-code change; verified by running the prompt-eval suite against ≥ 2 providers in CI. | FR-04…FR-17 |
+| NFR-07 | LLM cost | Budget ≤ 40k LLM tokens per active user per day across all features; prompt/system-prompt caching hit rate ≥ 30%; per-feature token metering enforced with soft limits per tier (BR-6). | FR-04…FR-17, FR-21, FR-22 |
+| NFR-08 | LLM portability | LLM provider swappable (Anthropic ⇄ OpenAI ⇄ Ollama) via configuration only — zero application-code change; verified by running the prompt-eval suite against ≥ 2 providers in CI. | FR-04…FR-17, FR-21, FR-22 |
 | NFR-09 | Observability | 100% of requests carry distributed traces (OpenTelemetry) with LLM calls as spans including model, token counts, and cost attributes; per-feature cost dashboards; alert when a user or feature exceeds 80% of its NFR-07 budget. | all |
-| NFR-10 | AI auditability | Every AI-generated score/assessment persists: prompt-template version, model id, input digest, structured output, and model rationale — retained ≥ 12 months and retrievable per user for dispute/review. | FR-07, FR-12, FR-14 |
+| NFR-10 | AI auditability | Every AI-generated score/assessment persists: prompt-template version, model id, input digest, structured output, and model rationale — retained ≥ 12 months and retrievable per user for dispute/review. | FR-07, FR-12, FR-14, FR-22 |
 | NFR-11 | Resilience — LLM outage | On LLM provider failure: chat returns an explicit degraded notice ≤ 2 s; drill/mock answer submission is accepted, queued, and scored on recovery (no data loss); question serving falls back to pre-generated pools; core navigation/read paths unaffected. Automatic failover to secondary provider ≤ 60 s where configured. | FR-05, FR-11…FR-16 |
-| NFR-12 | Data integrity | Roadmap evolution and session scoring are exactly-once from the user's perspective: event consumers idempotent (dedupe on session id), verified by duplicate-delivery tests. | FR-10, FR-14 |
+| NFR-12 | Data integrity | Roadmap evolution and session scoring are exactly-once from the user's perspective: event consumers idempotent (dedupe on session id; coding effects additionally per user+area), verified by duplicate-delivery tests. | FR-10, FR-14, FR-22 |
 
 ---
 
@@ -106,8 +110,12 @@ participate (sync call or `EVT-*` event). Service IDs per the hld skill.
 | FR-18 | — (BR-8) | SVC-AI | SVC-GW (auth), SVC-ASSESS, SVC-ROAD, SVC-PROG (backing capabilities) |
 | FR-19 | 04, 08 (future) | SVC-NOTIF | SVC-ASSESS (drill ready events), SVC-PROF (channel prefs) |
 | FR-20 | — (BR-7) | SVC-PROF | SVC-ID, SVC-ASSESS, SVC-ROAD, SVC-PROG, SVC-AI (embedding/audit purge), SVC-NOTIF |
+| FR-21 | 05, 06 (v2) | SVC-ROAD | SVC-AI (curation — selection from catalog), SVC-ASSESS (attaches resource at gap surfacing) |
+| FR-22 | 07 (v2) | SVC-ASSESS | SVC-AI (coding-solution scoring), SVC-ROAD (phase append), SVC-PROG (readiness delta) |
+| FR-23 | 11 | SVC-GW (CSP/allowlist — external embed, no domain service) | SVC-PROG (usage telemetry, Could) |
+| FR-24 | 12 | SVC-PROF | — |
 
-Coverage check: every FR has exactly one owner; every frontend spec 02–10 is
+Coverage check: every FR has exactly one owner; every frontend spec 02–12 is
 referenced by ≥ 1 FR (spec 01 is design-system-only — no backend surface).
 
 ---
@@ -128,3 +136,16 @@ referenced by ≥ 1 FR (spec 01 is design-system-only — no backend surface).
   capture is out of scope — not catalogued. Add an FR if it becomes real.
 - **Scheduling** ("Mock loop · Friday 9:00", "delivered every morning") is
   static copy today → catalogued once as FR-19, Could, owned by SVC-NOTIF.
+- **NFR mapping for v2 FRs (no new NFRs).** FR-22 coding-solution scoring rides
+  the existing NFR-03 async tier (session scoring ≤ 15 s p95 with a visible
+  "scoring" state); FR-24 notes-autosave writes are plain sync writes under
+  NFR-02 (≤ 300 ms p95) — autosave debouncing is a client concern, so no
+  dedicated write-latency NFR (NFR-13 considered and not allocated). FR-22's
+  exactly-once effects (gap + phase + readiness per area) fall under NFR-12.
+- **Playground (FR-23) is frontend-consumed.** The embed runs entirely in the
+  SPA against third-party origins; the backend's whole surface is the CSP
+  allowlist at SVC-GW (ADR-011, T-10). The coding test's "Open playground"
+  hand-off is a UI navigation, not an API.
+- **Coding-test "solved" count and +3 readiness** are fixture numerology like
+  the rest (see first note): FR-22 requires computed scores and a computed
+  readiness delta, with the UI rendering returned values.

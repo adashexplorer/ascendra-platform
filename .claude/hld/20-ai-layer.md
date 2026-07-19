@@ -1,7 +1,7 @@
 # HLD 20 — AI layer (SVC-AI deep-dive)
 
 Status: **Active** · Owner: hld-architect · Service doc: `16-ai-orchestrator-service.md`
-Requirements served: FR-04, FR-05, FR-07, FR-08 (LLM parts), FR-12, FR-13, FR-14, FR-16, FR-17, FR-18 · NFR-01, NFR-03, NFR-06…NFR-11
+Requirements served: FR-04, FR-05, FR-07, FR-08 (LLM parts), FR-12, FR-13, FR-14, FR-16, FR-17, FR-18, FR-21 (curation), FR-22 (coding scoring) · NFR-01, NFR-03, NFR-06…NFR-11
 
 ALL LLM interaction on the platform is concentrated in **SVC-AI**
 (`ai-orchestrator-service`) — no other service holds an LLM API key or builds a
@@ -93,6 +93,8 @@ and RAG configuration. No free-form prompt strings in application code.
 | `AdaptiveFollowUpGenerator` | FR-13 | chat | `FollowUp { question, area, level, reason }` | session transcript (current session only) |
 | `GapAnalyzer` | FR-08, FR-14 | heavy | `GapReport { gaps[]: {competency, current, target, severity}, strengths[], estWeeksToTarget }` | assessment results projection |
 | `ChatCopilot` | FR-16, FR-17 | chat (streaming) | streamed text + trailing `QuickActions { actions[]: {label, deepLink} }` frame | full per-user RAG (§3) |
+| `CodeScorer` | FR-22 | heavy | `CodeAssessment { solutions[]: {questionId, solved, score, notes}, solvedCount, weakArea, rationale }` — rubric-based, per-question rubric from `coding_question` | rubric + question context (no user corpus) |
+| `ResourceCurator` | FR-21 | scoring | `ResourceChoice { resourceId, confidence, reason }` — **selection only**: candidates are catalog rows passed in the prompt; output must echo a provided `resourceId` (validated), URLs never generated | none (candidate list is the input) |
 
 Structured-output rules (all scoring paths — NFR-10):
 
@@ -126,7 +128,7 @@ affected corpus slice. Splitters are LangChain4j `DocumentSplitters.recursive`.
 | --- | --- | --- | --- |
 | `resume` | EVT-ResumeParsed | recursive, 500 tokens, 50 overlap | parsed text sections; replaced wholesale on re-upload |
 | `plan_state` | EVT-PhaseAppended, EVT-ReadinessUpdated, EVT-GapSurfaced | 1 chunk per phase/gap/readiness snapshot (~200 tokens) | compact projection of roadmap + gaps + readiness; upsert by natural key |
-| `transcript` | EVT-SessionScored (all session kinds: drill, mock, diagnostic) | per Q&A pair, ≤ 800 tokens | includes score + feedback so chat can cite results |
+| `transcript` | EVT-SessionScored (all session kinds: drill, mock, diagnostic, coding) | per Q&A pair, ≤ 800 tokens | includes score + feedback so chat can cite results |
 | `prep_content` | admin-published library (batch job) | recursive, 800 tokens, 80 overlap | shared corpus — the ONLY corpus without `user_id` (marked `tenant=global`) |
 | `question_bank` | admin-published (batch job) | 1 chunk per question + rubric | shared; used by DiagnosticAssembler grounding |
 
@@ -283,6 +285,14 @@ chat turn.
 | Output | JSON-schema validation on every structured path | **retry-with-repair**: re-prompt with validator errors appended, max 2; then degradation path §6.4 |
 | Output | citation check for chat numeric claims (§3.3) | eval-time gate, runtime log-only |
 | Output | PII echo suppression in chat (no verbatim resume dumps > 200 chars) | truncate + summarize |
+| Output | `ResourceCurator` closed-world check — returned `resourceId` must be one of the supplied candidates | reject + retry once, then deterministic fallback (highest-tag-overlap catalog row) |
+
+**Resource-curation guardrail (FR-21, ADR-011).** Curation is *selection*, not
+generation: the model receives the allowlisted catalog candidates (id, title,
+tags) and returns an id — it is structurally incapable of introducing a new
+URL, which eliminates hallucinated, dead, or unsafe links (T-9). SVC-ROAD
+re-validates the id against an active catalog row at persistence time, so even
+a guardrail bug cannot surface a non-catalog link to a user.
 
 ### 6.3 Token budget & caching (NFR-07)
 
@@ -347,7 +357,7 @@ EVT-UserErased saga (FR-20, `21-data-architecture.md` §6).
 | consumes | EVT-ResumeParsed | ingest `resume` corpus (replace slice) |
 | consumes | EVT-GapSurfaced, EVT-PhaseAppended, EVT-ReadinessUpdated | upsert `plan_state` corpus |
 | consumes | EVT-SessionScored | ingest `transcript` corpus (all session kinds) |
-| consumes | EVT-AITaskRequested | run the async AI job (taskType: resume-extraction \| diagnostic-scoring \| mock-scoring \| drill-scoring-fallback) — e.g. diagnostic scoring for FR-07 |
+| consumes | EVT-AITaskRequested | run the async AI job (taskType: resume-extraction \| diagnostic-scoring \| mock-scoring \| coding-scoring \| drill-scoring-fallback) — e.g. diagnostic scoring for FR-07, coding assessment (`CodeScorer`) for FR-22 |
 | consumes | EVT-UserErased | delete embeddings + audit rows for user (FR-20 saga step) |
 | publishes | EVT-AITaskCompleted | validated structured result + `auditRef`, returned to the requesting service. SVC-AI publishes no DOMAIN events — those are emitted by the owning services (SVC-ASSESS etc.), keeping event semantics with the data owners |
 

@@ -13,7 +13,7 @@ API/event/schema sketches inside documents.
 
 1. `.claude/skills/hld/SKILL.md` — architecture conventions: document set, ID
    scheme, diagram rules, the canonical tech stack. Load it first, always.
-2. `.claude/specs/00-platform.md` through `.claude/specs/10-*.md` — the frontend feature specs.
+2. `.claude/specs/00-platform.md` through `.claude/specs/12-*.md` — the frontend feature specs.
    They are the functional truth: every backend capability must trace to them
    (or to an explicitly catalogued new requirement).
 3. `.claude/hld/01-requirements.md` — the BR/FR/NFR catalog. Requirements are created

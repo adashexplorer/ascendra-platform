@@ -19,6 +19,7 @@ history).
 | FR-07 | Baseline readiness from diagnostic | contributor (computes baseline from EVT-SessionScored kind=diagnostic) |
 | FR-11 | Recent-performance input to drill selection | contributor (serves per-area recent scores) |
 | FR-14 | Readiness delta per scored mock, exactly once | contributor (applies delta idempotently) |
+| FR-22 | Computed readiness delta per scored coding test (~+3 scale), exactly once | contributor (same delta path, kind=coding) |
 | FR-15 | Record scored sessions; serve trend + history | owner |
 | FR-20 | Erasure of progress data | contributor (purge on EVT-UserErased) |
 | NFR-12 | Idempotent event consumption | owner for readiness effects |
@@ -41,7 +42,7 @@ Synchronous endpoints (outline level — full schemas live in `25-api-contracts.
 | --- | --- | --- |
 | publishes | EVT-ReadinessUpdated | whenever readiness changes (baseline set or delta applied) — consumed by SVC-AI (RAG refresh) and SVC-NOTIF (future) |
 | publishes | EVT-UserErasureAcked | after purging projections for an erasure |
-| consumes | EVT-SessionScored | append `session_record`; recompute readiness (baseline for diagnostic; delta for drill/mock); append trend point; idempotent on `sessionId` |
+| consumes | EVT-SessionScored | append `session_record`; recompute readiness (baseline for diagnostic; delta for drill/mock/coding); append trend point; idempotent on `sessionId` |
 | consumes | EVT-PhaseAppended | annotate history with plan-evolution markers (cause-and-effect display, BR-3) |
 | consumes | EVT-UserErased | purge all projections; ack |
 
@@ -82,7 +83,7 @@ sequenceDiagram
     else first delivery
         alt kind = diagnostic
             PROG->>PG: set baseline + current readiness (FR-07)
-        else kind = drill or mock
+        else kind = drill, mock, or coding
             PROG->>PG: apply readiness delta fn(score, severity, recency), guard last_session_id
         end
         PROG->>PG: append trend_point + update area_performance
@@ -96,8 +97,8 @@ readiness mutation, and one trend point — the unique `sessionId` constraints
 make duplicate deliveries no-ops (NFR-12). The readiness function is a
 deterministic computation (weighted by session kind, score, gap severity,
 recency), versioned so historical trend points remain explainable; fixture
-numbers in the UI (68, +4/mock) are illustrative only per `01-requirements.md`
-§5. `EVT-PhaseAppended` consumption adds "plan extended" annotations to
+numbers in the UI (68, +4/mock, +3/coding test) are illustrative only per
+`01-requirements.md` §5. `EVT-PhaseAppended` consumption adds "plan extended" annotations to
 history so the Progress screen can show cause-and-effect (BR-3, spec 09).
 
 ## Scaling & failure modes

@@ -8,7 +8,10 @@ SVC-ROAD owns the user's gap store and phased roadmap: the phase → week →
 module model with done/active/next state, initial generation from the skill-gap
 report, and **append-only evolution** — consuming `EVT-GapSurfaced` to append
 new gaps and phases without ever mutating or deleting prior ones (BR-3,
-FR-10). It deliberately does NOT compute gaps (SVC-ASSESS derives them from
+FR-10). It also owns the **allowlisted learning-resource catalog** (FR-21,
+ADR-011): the curated table of external resources that gaps and phase modules
+reference by id — the only legitimate source of external URLs on the platform.
+It deliberately does NOT compute gaps (SVC-ASSESS derives them from
 scoring) and does NOT generate phase content itself (LLM generation delegated
 to SVC-AI, ADR-002).
 
@@ -20,6 +23,8 @@ to SVC-AI, ADR-002).
 | FR-09 | Generate phased roadmap from gaps | owner (content generation via SVC-AI) |
 | FR-10 | Append-only evolution via events, idempotent per source session | owner |
 | FR-11 | Active-phase focus input to drill selection | contributor (serves active phase to SVC-ASSESS) |
+| FR-21 | Allowlisted learning-resource catalog; resource on every gap + module | owner (catalog table + referential model; curation selection via SVC-AI) |
+| FR-22 | Coding-reinforcement phase append on coding-test completion | contributor (consumes EVT-GapSurfaced kind=coding; idempotent per user+area) |
 | FR-20 | Erasure of roadmap data | contributor (purge on EVT-UserErased) |
 | NFR-12 | Idempotent appends (dedupe on session id) | owner for roadmap effects |
 
@@ -32,7 +37,10 @@ Synchronous endpoints (outline level — full schemas live in `25-api-contracts.
 | GET `/api/roadmap` | Full roadmap: phases, weeks, modules, done/active/next state, appended-phase provenance | user (self) |
 | POST `/api/roadmap/generate` | Initial generation after diagnostic scoring (idempotent; usually triggered internally) | user (self) |
 | PUT `/api/roadmap/modules/{id}/state` | Mark module done → recompute active/next | user (self) |
-| GET `/api/roadmap/gaps` | Gap store incl. appended gaps with source-session provenance | user (self) |
+| GET `/api/roadmap/gaps` | Gap store incl. appended gaps with source-session provenance + resource links (FR-21) | user (self) |
+| GET `/api/resources` | Read allowlisted resource catalog (filter by area/competency) | user (self) |
+| PUT `/api/admin/resources/{id}` | Upsert/deactivate catalog entry (allowlisted-domain check on write) — *Could* | admin |
+| GET `/internal/resources` | Catalog read for SVC-AI ResourceCurator selection (FR-21) | service (SVC-AI, SVC-ASSESS) |
 | GET `/internal/roadmap/{userId}/active-phase` | Active phase + focus areas for drill selection (FR-11) | service (SVC-ASSESS) |
 | GET `/internal/roadmap/{userId}/summary` | Compact roadmap summary for RAG / quick actions | service (SVC-AI) |
 
@@ -42,7 +50,7 @@ Synchronous endpoints (outline level — full schemas live in `25-api-contracts.
 | --- | --- | --- |
 | publishes | EVT-PhaseAppended | after a consumed gap batch results in an appended phase — consumed by SVC-PROG (history annotation), SVC-AI (RAG refresh), SVC-NOTIF (future) |
 | publishes | EVT-UserErasureAcked | after purging roadmap + gap rows for an erasure |
-| consumes | EVT-GapSurfaced | append gaps to the gap store; request phase content from SVC-AI; append phase; **idempotent per `sourceSessionId`** — redelivery appends nothing twice (FR-10, NFR-12) |
+| consumes | EVT-GapSurfaced | append gaps (with `resourceId`, FR-21) to the gap store; request phase content from SVC-AI; append phase; **idempotent per `sourceSessionId`** — redelivery appends nothing twice (FR-10, NFR-12). `kind=coding`: append a "Coding reinforcement — {area}" phase with resource-linked modules, additionally idempotent per `(user_id, area)` (FR-22) |
 | consumes | EVT-UserErased | purge all roadmap/gap data; ack |
 
 ## Data model
@@ -50,13 +58,20 @@ Synchronous endpoints (outline level — full schemas live in `25-api-contracts.
 Owned PostgreSQL schema: `roadmap`. Append-only discipline: `phase` and `gap`
 rows are insert-only; only module *state* fields are updatable.
 
+- `learning_resource` — `resource_id (pk)`, `title`, `url`, `area`,
+  `competency_tags jsonb`, `domain` (must match the allowlisted-domain list,
+  enforced on write — ADR-011), `active`, `created_at`. Shared (not per-user);
+  the only table on the platform holding external URLs.
 - `gap` — `gap_id (pk)`, `user_id`, `short`, `long`, `severity`,
-  `competency`, `source_session_id`, `appended_at`. Unique
-  `(user_id, source_session_id, short)` — the idempotency guard.
+  `competency`, `resource_id → learning_resource` (FR-21),
+  `source_session_id`, `appended_at`. Unique
+  `(user_id, source_session_id, short)` — the idempotency guard; coding gaps
+  additionally unique `(user_id, area)` where `kind=coding` (FR-22).
 - `phase` — `phase_id (pk)`, `user_id`, `seq`, `name`, `weeks`,
   `origin (initial|appended)`, `source_session_id nullable`, `created_at`.
   No deletes, no content updates.
 - `module` — `module_id (pk)`, `phase_id`, `seq`, `title`,
+  `resource_id → learning_resource` (FR-21),
   `state (done|active|next)`, `state_changed_at` — state is the only mutable
   field in the schema.
 - `outbox` — transactional outbox (ADR-009).
@@ -101,6 +116,16 @@ with their source-session provenance, making cause-and-effect visible (BR-3).
 Initial generation (FR-09) follows the same shape triggered by the diagnostic's
 `EVT-GapSurfaced` (baseline batch): 4 initial phases, first phase's first
 module set `active`.
+
+Resource linking (FR-21): SVC-AI's generated phase content references modules
+by *catalog resource id* — the generator (ResourceCurator, `20-ai-layer.md`)
+selects from `GET /internal/resources`, never invents a URL (ADR-011). SVC-ROAD
+validates every incoming `resourceId` against an active catalog row before
+insert; an unknown id fails the append (retry after catalog fix), so a
+non-allowlisted link can never reach a user. Coding-test gaps arrive with their
+`resourceId` already attached by SVC-ASSESS (FR-22); the coding-reinforcement
+phase's two modules ("{area} problem set", "timed re-test") link the same
+area's catalog resources.
 
 ## Scaling & failure modes
 

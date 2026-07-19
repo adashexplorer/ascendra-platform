@@ -302,3 +302,38 @@ sync) and hard caps for abuse.
 Budget dimensions (feature, tier, model) are first-class metric labels
 (`23-observability.md`). Entitlement schema addition in
 `11-identity-service.md`; degradation ladder detailed in `20-ai-layer.md`.
+
+### ADR-011 — External content via an allowlisted resource catalog (links + embeds)
+
+- **Status**: Accepted
+- **Date**: 2026-07-19
+- **Drivers**: FR-21, FR-22, FR-23; T-9/T-10 (`22-security.md`); BR-7 (trust)
+
+#### Decision
+
+All external learning resources shown to users (gap resources, roadmap module
+links) come from a single curated catalog table (`roadmap.learning_resource`)
+whose entries must match a domain allowlist, reviewed by an admin and
+deactivatable per row. AI involvement is **selection only**: `ResourceCurator`
+picks a catalog id from supplied candidates and can never emit a URL; SVC-ROAD
+re-validates ids at persistence. Embedded third-party runners (playground,
+FR-23) are limited to CSP `frame-src`/`connect-src`-allowlisted origins
+(`onecompiler.com`, `codesandbox.io`) at SVC-GW, with no token or messaging
+channel exposed to the embed.
+
+#### Options considered
+
+| Option | Pros | Cons |
+| --- | --- | --- |
+| Curated allowlisted catalog, AI selects (chosen) | Hallucinated/dead/malicious links impossible by construction (T-9); one auditable table; kill switch per entry; catalog quality improves centrally | Curation effort — catalog must be seeded and maintained; a missing area needs a deterministic fallback |
+| Free AI-generated links | Zero curation effort; always "finds" something | LLMs hallucinate and cannot vouch for URL safety; every generated link is an unreviewed external trust decision; T-9 unmitigated |
+| No external content | No third-party risk at all | Guts the v2 specs — resource-linked gaps/modules and the playground are the feature; users leave the platform to search anyway |
+
+#### Consequences
+
+SVC-ROAD owns the catalog (schema + admin API); `20-ai-layer.md` adds the
+closed-world guardrail with a deterministic fallback (highest-tag-overlap row)
+when selection fails; SVC-GW owns the embed-origin CSP. Adding a new resource
+domain or embed origin is a config/catalog change plus review — never a code
+path. If a runtime area has no catalog entry, the gap is created without a
+resource and flagged for curation (resource arrives late, never invented).

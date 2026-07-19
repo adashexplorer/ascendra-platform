@@ -41,7 +41,13 @@ Conventions:
 | POST `/api/resume` | Upload PDF/DOCX ≤ 10 MB → 202 `parsing` | user (self) | FR-03, FR-04 |
 | GET `/api/resume/status` | scanning/parsing/parsed/failed | user (self) | FR-03, FR-04 |
 | GET `/api/profile/skills` | Extracted skill inventory | user (self) | FR-04 |
-| POST `/api/privacy/export` | Async data export | user (self) | FR-20 |
+| GET `/api/notes` | Notes text + updated_at | user (self) | FR-24 |
+| PUT `/api/notes` | Autosave notes (replace, last-write-wins) | user (self) | FR-24 |
+| GET `/api/todos` | TODO list | user (self) | FR-24 |
+| POST `/api/todos` | Add TODO | user (self) | FR-24 |
+| PATCH `/api/todos/{id}` | Toggle done | user (self) | FR-24 |
+| DELETE `/api/todos/{id}` | Remove TODO | user (self) | FR-24 |
+| POST `/api/privacy/export` | Async data export (incl. notes/todos) | user (self) | FR-20, FR-24 |
 | POST `/api/privacy/erase` | Start erasure saga → 202 | user (self) | FR-20 |
 | GET `/api/privacy/erase/{erasureId}` | Saga progress | user (self) | FR-20 |
 | GET `/internal/profiles/{userId}/skills` | Inventory + target role | service | FR-05, FR-16 |
@@ -62,6 +68,11 @@ Conventions:
 | POST `/api/mocks/{id}/answers` | Answer → adapted follow-up | user (self) | FR-13 |
 | POST `/api/mocks/{id}/finish` | End → 202 `scoring` | user (self) | FR-14 |
 | GET `/api/mocks/{id}` | Session + score when `scored` | user (self) | FR-14 |
+| POST `/api/coding-tests` | Start coding test (config: difficulty/count/area, defaults random/5/mixed) | user (self) | FR-22 |
+| POST `/api/coding-tests/{id}/solutions` | Submit solution → next question | user (self) | FR-22 |
+| POST `/api/coding-tests/{id}/finish` | End → 202 `scoring` | user (self) | FR-22 |
+| POST `/api/coding-tests/{id}/abandon` | Abandon (no scoring) | user (self) | FR-22 |
+| GET `/api/coding-tests/{id}` | Status/result (solved/total, weak area, gap + resource) | user (self) | FR-22, FR-21 |
 | GET `/internal/sessions/{userId}/recent` | Recent summaries for RAG | service | FR-16 |
 
 ## SVC-ROAD — roadmap (`14-roadmap-service.md`)
@@ -71,7 +82,10 @@ Conventions:
 | GET `/api/roadmap` | Phases/weeks/modules + state + provenance | user (self) | FR-09, FR-10 |
 | POST `/api/roadmap/generate` | Initial generation (idempotent) | user (self) | FR-09 |
 | PUT `/api/roadmap/modules/{id}/state` | Mark module done | user (self) | FR-09 |
-| GET `/api/roadmap/gaps` | Gap store with provenance | user (self) | FR-08, FR-10 |
+| GET `/api/roadmap/gaps` | Gap store with provenance + resource links | user (self) | FR-08, FR-10, FR-21 |
+| GET `/api/resources` | Allowlisted resource catalog read | user (self) | FR-21 |
+| PUT `/api/admin/resources/{id}` | Catalog upsert/deactivate (allowlist-checked) — *Could* | admin | FR-21 |
+| GET `/internal/resources` | Catalog candidates for ResourceCurator | service | FR-21 |
 | GET `/internal/roadmap/{userId}/active-phase` | Focus for drill selection | service | FR-11 |
 | GET `/internal/roadmap/{userId}/summary` | Summary for RAG/quick actions | service | FR-16, FR-17 |
 
@@ -95,11 +109,13 @@ Conventions:
 | POST `/internal/generate/questions` | Diagnostic question set | service (SVC-ASSESS) | FR-05 |
 | POST `/internal/generate/followup` | Adaptive mock follow-up | service (SVC-ASSESS) | FR-13 |
 | POST `/internal/score/drill` | Sync drill scoring ≤ 5 s | service (SVC-ASSESS) | FR-12 |
-| POST `/internal/generate/phase` | Phase content from gaps | service (SVC-ROAD) | FR-09, FR-10 |
+| POST `/internal/generate/phase` | Phase content from gaps (modules cite catalog resource ids) | service (SVC-ROAD) | FR-09, FR-10, FR-21 |
+| POST `/internal/curate/resource` | Pick catalog resource for a gap/area (closed-world, ADR-011) | service (SVC-ASSESS, SVC-ROAD) | FR-21 |
 | GET `/internal/audit/{auditRef}` | AI audit record (NFR-10) | service/admin | NFR-10 |
 
-Heavy AI jobs (resume extraction, diagnostic/mock scoring) are **not** REST —
-they ride `EVT-AITaskRequested`/`EVT-AITaskCompleted` (`00-hld-overview.md` §6).
+Heavy AI jobs (resume extraction, diagnostic/mock/coding scoring) are **not**
+REST — they ride `EVT-AITaskRequested`/`EVT-AITaskCompleted`
+(`00-hld-overview.md` §6).
 
 ## SVC-NOTIF — notification (`17-notification-service.md`) — future
 
@@ -112,9 +128,12 @@ they ride `EVT-AITaskRequested`/`EVT-AITaskCompleted` (`00-hld-overview.md` §6)
 
 No business endpoints; routing table in `10-api-gateway.md`. SSE routes
 (`/api/chat/**`) proxied unbuffered; MCP (`/mcp/**`) rate-limited in its own
-bucket (ADR-007).
+bucket (ADR-007). FR-23 (playground) has **no API** — its backend surface is
+the edge CSP `frame-src`/`connect-src` allowlist for the embed origins
+(`10-api-gateway.md`, ADR-011).
 
 ## Coverage check
 
-Every FR-01…FR-18 + FR-20 has ≥ 1 endpoint or event path above; FR-19 is
-future-marked. Full schemas: springdoc-openapi per service, published in CI.
+Every FR-01…FR-18, FR-20…FR-22, FR-24 has ≥ 1 endpoint or event path above;
+FR-19 is future-marked; FR-23 is edge-config-only (no endpoint by design).
+Full schemas: springdoc-openapi per service, published in CI.
