@@ -124,7 +124,7 @@ Conventions:
 
 Heavy AI jobs (resume extraction, diagnostic/mock/coding scoring) are **not**
 REST — they ride `EVT-AITaskRequested`/`EVT-AITaskCompleted`
-(`00-hld-overview.md` §6).
+(`00-hld-overview.md` §7).
 
 ## SVC-NOTIF — notification (`17-notification-service.md`) — future
 

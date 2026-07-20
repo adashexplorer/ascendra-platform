@@ -99,7 +99,95 @@ One physical PostgreSQL cluster, hard schema-per-service boundaries (no
 cross-schema queries — ADR-001, principle 2). pgvector lives in SVC-AI's
 schema only (ADR-003).
 
-## 4. Service map
+## 4. C4 — Component view (detailed)
+
+Two diagrams. The first is the full service ↔ data ↔ external-system topology
+(more detail than the container view above: every sync dependency and where
+each service's state lives). The second is the **event backbone** — the
+`EVT-*` choreography across services, which doesn't appear as a single picture
+anywhere else in the HLD (per-service docs each show only their own in/out
+events). SVC-AI's internals (LangChain4j, RAG, MCP, prompt registry,
+guardrails) are diagrammed in full in `20-ai-layer.md` §1 — summarized here
+only as a labeled subgraph so this view stays under the diagram size budget.
+
+### 4.1 Service, data & external-system topology
+
+```mermaid
+flowchart TB
+    spa[React SPA]
+    gw[SVC-GW<br/>gateway]
+
+    id[SVC-ID<br/>identity]
+    prof[SVC-PROF<br/>profile]
+    assess[SVC-ASSESS<br/>assessment]
+    road[SVC-ROAD<br/>roadmap]
+    prog[SVC-PROG<br/>progress]
+    ai[SVC-AI<br/>ai-orchestrator]
+    notif[SVC-NOTIF<br/>notification · future]
+
+    pg[(PostgreSQL 16<br/>schema per service + pgvector in SVC-AI)]
+    kafka[[Kafka<br/>EVT-* backbone]]
+    redis[(Redis<br/>cache · budgets · rate limits)]
+    obj[(Object storage<br/>resumes)]
+    kc[Keycloak OIDC]
+    llm[LLM providers]
+
+    spa --> gw
+    gw --> id & prof & assess & road & prog & ai
+    id --> kc
+    prof --> obj
+    assess -->|skills, target role| prof
+    assess -->|recent performance| prog
+    assess -->|active phase| road
+    road -->|phase/resource generation| ai
+    assess -->|scoring, generation, curation| ai
+    prof -->|resume extraction, 202| ai
+    ai -->|RAG state reads| prof & road & prog & assess
+    ai --> llm
+
+    id & prof & assess & road & prog & ai & notif --> pg
+    id & prof & assess & road & prog & ai & notif <--> kafka
+    gw & ai --> redis
+```
+
+### 4.2 Event backbone (EVT-* choreography)
+
+```mermaid
+flowchart LR
+    subgraph core["Domain services"]
+        prof[SVC-PROF]
+        assess[SVC-ASSESS]
+        road[SVC-ROAD]
+        prog[SVC-PROG]
+        notif[SVC-NOTIF<br/>future]
+    end
+
+    subgraph aiSvc["SVC-AI — internals in 20-ai-layer.md §1"]
+        prov[LangChain4j<br/>provider layer]
+        rag[RAG<br/>pgvector]
+        mcp[MCP server<br/>+ client]
+        pr[Prompt<br/>registry]
+        gr[Guardrails<br/>+ budgets]
+    end
+
+    prof -->|EVT-ResumeParsed| assess
+    prof -->|EVT-AITaskRequested<br/>resume-extraction| aiSvc
+    aiSvc -->|EVT-AITaskCompleted| prof
+    assess -->|EVT-AITaskRequested<br/>scoring/curation| aiSvc
+    aiSvc -->|EVT-AITaskCompleted| assess
+    assess -->|EVT-SessionScored| prog
+    assess -->|EVT-GapSurfaced<br/>+resourceId| road
+    road -->|EVT-PhaseAppended| prog
+    road -.->|EVT-PhaseAppended<br/>future| notif
+    prog -->|EVT-ReadinessUpdated| aiSvc
+    prog -.->|EVT-ReadinessUpdated<br/>future| notif
+    prof ==>|EVT-UserErased<br/>tombstone saga, ADR-008| assess & road & prog & aiSvc
+    assess & road & prog & aiSvc -.->|EVT-UserErasureAcked| prof
+```
+
+Full event catalog with payload gists: §7 below.
+
+## 5. Service map
 
 | SVC-ID | Service name | Doc | Responsibility (one line) |
 | --- | --- | --- | --- |
@@ -112,7 +200,7 @@ schema only (ADR-003).
 | SVC-AI | ai-orchestrator-service | `16-ai-orchestrator-service.md` | ALL LLM work: chat/RAG, extraction, scoring, generation, MCP server, token budgets. |
 | SVC-NOTIF | notification-service | `17-notification-service.md` | **Future** — daily drill delivery and schedule reminders (FR-19). |
 
-## 5. Sync interaction matrix (REST, caller → callee)
+## 6. Sync interaction matrix (REST, caller → callee)
 
 | Caller | Callee | Purpose | FRs |
 | --- | --- | --- | --- |
@@ -130,7 +218,7 @@ schema only (ADR-003).
 Service-to-service calls carry propagated user JWTs plus a service credential
 (details in `22-security.md`).
 
-## 6. Async matrix — EVT-* catalog (Kafka)
+## 7. Async matrix — EVT-* catalog (Kafka)
 
 Derived from the traceability matrix and requirement flows. `EVT-AITaskRequested/Completed`
 is the generic durable AI-job pair (ADR-005) — a "diagnostic completed and
@@ -155,7 +243,7 @@ Conventions: one topic per event type (`asc.<event>` kebab-case), keyed by
 `userId` (ordering per user), every event carries `eventId` + `sourceId` for
 idempotent consumption (NFR-12). Full schemas in `21-data-architecture.md`.
 
-## 7. Canonical tech stack
+## 8. Canonical tech stack
 
 | Concern | Choice |
 | --- | --- |
@@ -177,7 +265,7 @@ idempotent consumption (NFR-12). Full schemas in `21-data-architecture.md`.
 
 Deviations require an ADR (`02-architecture-principles.md`).
 
-## 8. HLD registry
+## 9. HLD registry
 
 | Doc | Title | Status |
 | --- | --- | --- |

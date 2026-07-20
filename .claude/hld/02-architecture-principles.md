@@ -272,7 +272,7 @@ Use Apache Kafka for all domain events and durable AI job queues.
 #### Consequences
 
 Producers use the transactional outbox pattern for exactly-once-effect
-publishing (NFR-12); topic conventions in `00-hld-overview.md` §6, retention
+publishing (NFR-12); topic conventions in `00-hld-overview.md` §7, retention
 in `21-data-architecture.md`.
 
 ### ADR-010 — Token budgeting enforced in SVC-AI, tied to entitlements
