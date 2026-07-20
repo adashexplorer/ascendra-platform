@@ -9,7 +9,11 @@ service layer (fixtures + localStorage); the backend exists as an HLD.
 
 - `ascendra-frontend/` — the frontend source code (Vite + React 19 + TS).
 - `ascendra-backend/` — the backend source code (Java 21 / Spring Boot
-  microservices per the HLD; empty until implementation starts).
+  microservices per the HLD; empty until implementation starts). Its
+  `api/openapi.yaml` is the consolidated, executable OpenAPI 3.0.3 contract for
+  the whole gateway surface (realizes `.claude/hld/25-api-contracts.md`) — from
+  `ascendra-backend/api/`: `npm install && npm run mock` (Prism mock on :4010),
+  `npm run docs` (Swagger UI Try-it-out on :8088), `npm run lint` (redocly).
 - `.claude/` — ALL documentation + agent infrastructure: `specs/` (UI feature
   specs), `hld/` (backend HLD), `design/` (Nocturne design system), `agents/`,
   `skills/`. Only this CLAUDE.md lives at the repo root.

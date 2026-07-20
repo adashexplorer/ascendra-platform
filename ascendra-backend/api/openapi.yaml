@@ -1,0 +1,2917 @@
+openapi: 3.0.3
+info:
+  title: Ascendra Platform API
+  version: 1.0.0
+  description: |
+    Consolidated **gateway contract** for the Ascendra AI interview-prep
+    platform. This is the single executable realization of
+    `.claude/hld/25-api-contracts.md`: every row of that endpoint outline maps
+    to exactly one operation here, across SVC-ID, SVC-PROF, SVC-ASSESS,
+    SVC-ROAD, SVC-PROG, SVC-AI, and the future SVC-NOTIF endpoints.
+
+    Contract-first: no backend code exists yet. The eventual source of truth is
+    springdoc-openapi generated per service from the Java code; this document
+    fixes the surface and naming so the per-service specs cannot drift.
+
+    Conventions:
+    - Gateway prefixes are exact — `/api/**` external, `/internal/**`
+      service-to-service only, `/mcp` for the MCP JSON-RPC endpoint.
+    - Errors are RFC 9457 `application/problem+json` (the `Problem` schema).
+    - Long-running work returns `202` with a status resource using the
+      `parsing` / `scoring` vocabulary (ADR-005); clients poll the matching
+      status endpoint.
+    - `429` responses carry a `Retry-After` header.
+  contact:
+    name: Ascendra platform team
+  license:
+    name: Proprietary
+    url: https://ascendra.example/license
+servers:
+  - url: http://127.0.0.1:4010
+    description: Prism mock server (npm run mock)
+  - url: https://api.ascendra.example
+    description: Production edge (SVC-GW gateway)
+
+tags:
+  - name: identity
+    description: SVC-ID — accounts, authentication, entitlements (11-identity-service.md).
+  - name: profile
+    description: SVC-PROF — profile, resume, skills, notes/todos, privacy (12-profile-service.md).
+  - name: assessment
+    description: SVC-ASSESS — diagnostic, drills, mocks, coding tests, gaps (13-assessment-service.md).
+  - name: roadmap
+    description: SVC-ROAD — phased roadmap, gap store, resource catalog (14-roadmap-service.md).
+  - name: progress
+    description: SVC-PROG — readiness, trend, history (15-progress-service.md).
+  - name: ai
+    description: SVC-AI — chat orchestration, MCP, generation/scoring/curation (16-ai-orchestrator-service.md).
+  - name: notification
+    description: SVC-NOTIF — notification preferences (17-notification-service.md, future).
+  - name: internal
+    description: Service-to-service `/internal/**` operations, never routed by the public gateway.
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ==================================================================
+  # SVC-ID — identity
+  # ==================================================================
+  /api/auth/register:
+    post:
+      tags: [identity]
+      operationId: registerAccount
+      summary: Register a new account
+      description: |
+        Creates an account via Keycloak and returns access/refresh tokens
+        (FR-01). Public — no bearer token required.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created; tokens issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api/auth/login:
+    post:
+      tags: [identity]
+      operationId: login
+      summary: Log in with credentials
+      description: Exchanges email + password for access/refresh tokens (FR-01). Public.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated; tokens issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api/auth/refresh:
+    post:
+      tags: [identity]
+      operationId: refreshToken
+      summary: Refresh the access token
+      description: Exchanges a valid refresh token for a new access token (FR-01). Public path; the refresh token authenticates the caller.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: New tokens issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /api/auth/logout:
+    post:
+      tags: [identity]
+      operationId: logout
+      summary: Revoke the current session
+      description: Revokes the caller's session/refresh token (FR-01, user self).
+      responses:
+        '204':
+          description: Session revoked.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/me:
+    get:
+      tags: [identity]
+      operationId: getMe
+      summary: Current user identity
+      description: Returns userId, email, and tier for the authenticated user (FR-01, FR-02).
+      responses:
+        '200':
+          description: Current identity.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /internal/entitlements/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/UserIdPath'
+    get:
+      tags: [identity, internal]
+      operationId: getEntitlements
+      summary: '[internal] Tier and limits for a user'
+      description: Returns tier and gating/budget limits for a user (FR-02, NFR-07). Service-to-service only.
+      security:
+        - serviceAuth: []
+      responses:
+        '200':
+          description: Entitlements for the user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entitlements'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [identity, internal]
+      operationId: setEntitlements
+      summary: '[internal] Set a user tier'
+      description: Sets the tier for a user (FR-02). Admin/service only.
+      security:
+        - serviceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntitlementsUpdate'
+      responses:
+        '200':
+          description: Updated entitlements.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entitlements'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  # ==================================================================
+  # SVC-PROF — profile
+  # ==================================================================
+  /api/profile:
+    get:
+      tags: [profile]
+      operationId: getProfile
+      summary: Get profile
+      description: Profile including plan display, readiness snapshot, competencies, weak areas, and gap tags (FR-02).
+      responses:
+        '200':
+          description: The user's profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags: [profile]
+      operationId: updateProfile
+      summary: Update profile
+      description: Update display name and/or target role (FR-02, user self).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdate'
+      responses:
+        '200':
+          description: Updated profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /api/resume:
+    post:
+      tags: [profile]
+      operationId: uploadResume
+      summary: Upload a resume
+      description: |
+        Multipart upload of a PDF/DOCX resume (≤ 10 MB). The file is scanned,
+        stored, and queued for async LLM extraction (FR-03, FR-04). Returns
+        `202` with a status resource; poll `GET /api/resume/status`.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Resume file, PDF or DOCX, ≤ 10 MB.
+      responses:
+        '202':
+          description: Upload accepted; extraction queued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumeAccepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /api/resume/status:
+    get:
+      tags: [profile]
+      operationId: getResumeParseStatus
+      summary: Resume upload/parse status
+      description: Current upload/parse status — `scanning` | `parsing` | `parsed` | `failed`. SPA polls during onboarding (FR-03, FR-04).
+      responses:
+        '200':
+          description: Current resume status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumeStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/profile/skills:
+    get:
+      tags: [profile]
+      operationId: getSkillInventory
+      summary: Extracted skill inventory
+      description: The skill inventory extracted from the resume (FR-04).
+      responses:
+        '200':
+          description: Extracted skills.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillInventory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/notes:
+    get:
+      tags: [profile]
+      operationId: getNotes
+      summary: Get notes
+      description: Free-form notes text plus `updatedAt` (FR-24).
+      responses:
+        '200':
+          description: The user's notes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notes'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags: [profile]
+      operationId: updateNotes
+      summary: Autosave notes
+      description: Full-document replace, last-write-wins per user; client debounces (FR-24, NFR-02).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotesUpdate'
+      responses:
+        '200':
+          description: Saved notes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notes'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /api/todos:
+    get:
+      tags: [profile]
+      operationId: listTodos
+      summary: List TODOs
+      description: The user's TODO list (FR-24).
+      responses:
+        '200':
+          description: TODO items.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TodoItem'
+              example:
+                - id: td-1
+                  text: Finish Phase 2 concurrency module
+                  done: false
+                - id: td-2
+                  text: Book a system-design mock
+                  done: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [profile]
+      operationId: createTodo
+      summary: Add a TODO
+      description: Adds a TODO; whitespace-only text is rejected (FR-24).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TodoCreate'
+      responses:
+        '201':
+          description: Created TODO.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /api/todos/{id}:
+    parameters:
+      - $ref: '#/components/parameters/TodoIdPath'
+    patch:
+      tags: [profile]
+      operationId: toggleTodo
+      summary: Toggle a TODO
+      description: Toggles the done state of a TODO (FR-24).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                done:
+                  type: boolean
+              required: [done]
+              example:
+                done: true
+      responses:
+        '200':
+          description: Updated TODO.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [profile]
+      operationId: deleteTodo
+      summary: Remove a TODO
+      description: Removes a TODO from the list (FR-24).
+      responses:
+        '204':
+          description: Removed.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/privacy/export:
+    post:
+      tags: [profile]
+      operationId: requestDataExport
+      summary: Request a data export
+      description: Starts an async account data export bundle including notes/todos (FR-20, FR-24). Returns a status resource.
+      responses:
+        '202':
+          description: Export started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivacyExportStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/privacy/erase:
+    post:
+      tags: [profile]
+      operationId: requestErasure
+      summary: Start account erasure
+      description: Starts the GDPR erasure saga across services (FR-20). Returns `202` with an erasureId to poll.
+      responses:
+        '202':
+          description: Erasure saga started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErasureAccepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/privacy/erase/{erasureId}:
+    parameters:
+      - name: erasureId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Erasure saga identifier returned by POST /api/privacy/erase.
+    get:
+      tags: [profile]
+      operationId: getErasureStatus
+      summary: Erasure saga progress
+      description: Returns progress of the erasure saga (FR-20).
+      responses:
+        '200':
+          description: Saga progress.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErasureStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /internal/profiles/{userId}/skills:
+    parameters:
+      - $ref: '#/components/parameters/UserIdPath'
+    get:
+      tags: [profile, internal]
+      operationId: getInternalProfileSkills
+      summary: '[internal] Skill inventory and target role'
+      description: Skill inventory plus target role for gap analysis and RAG (FR-05, FR-16). Service-to-service only.
+      security:
+        - serviceAuth: []
+      responses:
+        '200':
+          description: Inventory and target role.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillInventory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================================================================
+  # SVC-ASSESS — assessment
+  # ==================================================================
+  /api/assessments/diagnostic:
+    post:
+      tags: [assessment]
+      operationId: createDiagnostic
+      summary: Create or return diagnostic session
+      description: Creates (or returns the in-progress) 50-question diagnostic session once inventory is ready (FR-05).
+      responses:
+        '200':
+          description: Existing in-progress session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosticSession'
+        '201':
+          description: New diagnostic session assembled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosticSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/assessments/diagnostic/current:
+    get:
+      tags: [assessment]
+      operationId: getCurrentDiagnostic
+      summary: Current diagnostic session
+      description: Returns the session plus resume position (`diagIdx`), cross-device (FR-06).
+      responses:
+        '200':
+          description: Current session and resume position.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosticSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/assessments/diagnostic/answers/{qIdx}:
+    parameters:
+      - name: qIdx
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 0
+        description: Zero-based question index within the diagnostic session.
+    put:
+      tags: [assessment]
+      operationId: saveDiagnosticAnswer
+      summary: Save a diagnostic answer
+      description: Saves a free-text answer; auto-save doubles as save-and-exit (FR-06).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiagnosticAnswer'
+      responses:
+        '204':
+          description: Answer saved.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /api/assessments/diagnostic/submit:
+    post:
+      tags: [assessment]
+      operationId: submitDiagnostic
+      summary: Submit the diagnostic
+      description: Finishes the diagnostic; transitions to `scoring` and kicks off async scoring (FR-07). Poll the session or gaps.
+      responses:
+        '202':
+          description: Submitted; scoring in progress.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoringAccepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/assessments/diagnostic/reset:
+    post:
+      tags: [assessment]
+      operationId: resetDiagnostic
+      summary: Re-run the diagnostic
+      description: Archives the old session and starts fresh (FR-06).
+      responses:
+        '201':
+          description: New session started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosticSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/assessments/gaps:
+    get:
+      tags: [assessment]
+      operationId: getAssessmentGaps
+      summary: Skill-gap report
+      description: The computed skill-gap report — competencies (level vs target), strengths, priority gaps, ETA (FR-08).
+      responses:
+        '200':
+          description: Skill-gap report.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GapReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/drills/today:
+    get:
+      tags: [assessment]
+      operationId: getTodayDrills
+      summary: Today's drill set
+      description: Today's 10 drill questions plus the resume position (FR-11).
+      responses:
+        '200':
+          description: Today's drill set.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DrillSet'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/drills/answers:
+    post:
+      tags: [assessment]
+      operationId: submitDrillAnswer
+      summary: Submit a drill answer
+      description: |
+        Submits a drill answer for synchronous LLM feedback within ≤ 5 s
+        (FR-12, NFR-03). Returns `200` with feedback, or `202` with a scoring
+        status resource when the sync path fails over (NFR-11).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DrillAnswer'
+      responses:
+        '200':
+          description: Synchronous feedback.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DrillFeedback'
+        '202':
+          description: Scoring queued (sync fallback).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoringAccepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /api/mocks:
+    post:
+      tags: [assessment]
+      operationId: startMock
+      summary: Start a mock session
+      description: Starts an adaptive mock interview session; questions drawn from gap areas, optionally filtered by level (FR-13).
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                level:
+                  $ref: '#/components/schemas/QuestionLevel'
+              example:
+                level: Advanced
+      responses:
+        '201':
+          description: Mock session started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MockSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /api/mocks/{id}/answers:
+    parameters:
+      - $ref: '#/components/parameters/SessionIdPath'
+    post:
+      tags: [assessment]
+      operationId: answerMock
+      summary: Answer a mock question
+      description: Submits an answer and returns the adapted follow-up question (FR-13).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MockAnswer'
+      responses:
+        '200':
+          description: Adapted follow-up question.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewQuestion'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /api/mocks/{id}/finish:
+    parameters:
+      - $ref: '#/components/parameters/SessionIdPath'
+    post:
+      tags: [assessment]
+      operationId: finishMock
+      summary: Finish a mock session
+      description: Ends the mock; transitions to `scoring` and kicks off async scoring (FR-14).
+      responses:
+        '202':
+          description: Finished; scoring in progress.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoringAccepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/mocks/{id}:
+    parameters:
+      - $ref: '#/components/parameters/SessionIdPath'
+    get:
+      tags: [assessment]
+      operationId: getMock
+      summary: Get a mock session
+      description: Returns the session, including the score once state is `scored`; SPA polls (FR-14).
+      responses:
+        '200':
+          description: Session (with score when scored).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MockSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/coding-tests:
+    post:
+      tags: [assessment]
+      operationId: startCodingTest
+      summary: Start a coding test
+      description: |
+        Starts a configurable coding test. Config `{difficulty?, count?, area?}`
+        defaults to random / 5 / mixed; questions are selected and shuffled from
+        the coding bank (FR-22).
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodingTestConfig'
+      responses:
+        '201':
+          description: Coding test started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodingTest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /api/coding-tests/{id}/solutions:
+    parameters:
+      - $ref: '#/components/parameters/SessionIdPath'
+    post:
+      tags: [assessment]
+      operationId: submitCodingSolution
+      summary: Submit a coding solution
+      description: Submits the solution text for the current question and returns the next question (FR-22).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodingSolution'
+      responses:
+        '200':
+          description: Next question (or end-of-test marker).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodingQuestion'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /api/coding-tests/{id}/finish:
+    parameters:
+      - $ref: '#/components/parameters/SessionIdPath'
+    post:
+      tags: [assessment]
+      operationId: finishCodingTest
+      summary: Finish a coding test
+      description: Ends the test; transitions to `scoring` and kicks off async AI assessment (FR-22).
+      responses:
+        '202':
+          description: Finished; scoring in progress.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoringAccepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/coding-tests/{id}/abandon:
+    parameters:
+      - $ref: '#/components/parameters/SessionIdPath'
+    post:
+      tags: [assessment]
+      operationId: abandonCodingTest
+      summary: Abandon a coding test
+      description: Abandons the test — state `abandoned`, no scoring and no downstream effects (FR-22).
+      responses:
+        '204':
+          description: Abandoned.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/coding-tests/{id}:
+    parameters:
+      - $ref: '#/components/parameters/SessionIdPath'
+    get:
+      tags: [assessment]
+      operationId: getCodingTest
+      summary: Get a coding test
+      description: Returns the test, including the result (solved/total, weak area, gap + resource) once `scored` (FR-22, FR-21).
+      responses:
+        '200':
+          description: Test (with result when scored).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodingTest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /internal/sessions/{userId}/recent:
+    parameters:
+      - $ref: '#/components/parameters/UserIdPath'
+    get:
+      tags: [assessment, internal]
+      operationId: getInternalRecentSessions
+      summary: '[internal] Recent session summaries'
+      description: Recent session summaries for RAG context (FR-16). Service-to-service only.
+      security:
+        - serviceAuth: []
+      responses:
+        '200':
+          description: Recent sessions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SessionRecord'
+              example:
+                - date: Jul 12
+                  kind: Mock loop · 4 rounds
+                  score: 3.2 / 5
+                  focus: System Design
+                - date: Jul 08
+                  kind: Daily drill
+                  score: 7 / 10
+                  focus: Concurrency
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================================================================
+  # SVC-ROAD — roadmap
+  # ==================================================================
+  /api/roadmap:
+    get:
+      tags: [roadmap]
+      operationId: getRoadmap
+      summary: Get the roadmap
+      description: Phases / weeks / modules with state and provenance (FR-09, FR-10).
+      responses:
+        '200':
+          description: The user's roadmap.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Roadmap'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/roadmap/generate:
+    post:
+      tags: [roadmap]
+      operationId: generateRoadmap
+      summary: Generate the roadmap
+      description: Idempotent initial generation of the roadmap from gaps (FR-09).
+      responses:
+        '200':
+          description: Existing roadmap (idempotent replay).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Roadmap'
+        '201':
+          description: Roadmap generated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Roadmap'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/roadmap/modules/{id}/state:
+    parameters:
+      - $ref: '#/components/parameters/ModuleIdPath'
+    put:
+      tags: [roadmap]
+      operationId: setModuleState
+      summary: Update module state
+      description: Marks a module done (FR-09).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModuleStateUpdate'
+      responses:
+        '200':
+          description: Updated module.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhaseModule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /api/roadmap/gaps:
+    get:
+      tags: [roadmap]
+      operationId: getRoadmapGaps
+      summary: Gap store
+      description: Gap store with provenance and resource links (FR-08, FR-10, FR-21).
+      responses:
+        '200':
+          description: Gaps with resources.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GapItem'
+              example:
+                - short: Rate-limiter partitions
+                  long: Rate-limiter correctness under network partitions
+                  res: System Design Primer
+                  url: https://github.com/donnemartin/system-design-primer
+                - short: Impact metrics
+                  long: Quantifying impact in behavioral answers
+                  res: Tech Interview Handbook
+                  url: https://www.techinterviewhandbook.org/behavioral-interview/
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/resources:
+    get:
+      tags: [roadmap]
+      operationId: listResources
+      summary: Resource catalog
+      description: Allowlisted resource catalog, read-only (FR-21).
+      responses:
+        '200':
+          description: Catalog entries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResourceCatalogItem'
+              example:
+                - id: res-sdp
+                  title: System Design Primer
+                  url: https://github.com/donnemartin/system-design-primer
+                  area: System Design
+                  active: true
+                - id: res-jenkov
+                  title: Jenkov concurrency course
+                  url: https://jenkov.com/tutorials/java-concurrency/index.html
+                  area: Concurrency
+                  active: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/admin/resources/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceIdPath'
+    put:
+      tags: [roadmap]
+      operationId: upsertResource
+      summary: Upsert a catalog resource (admin)
+      description: Catalog upsert/deactivate, allowlist-checked (FR-21, *Could*). Admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceCatalogUpsert'
+      responses:
+        '200':
+          description: Upserted resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceCatalogItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /internal/resources:
+    get:
+      tags: [roadmap, internal]
+      operationId: getInternalResources
+      summary: '[internal] Catalog candidates for curation'
+      description: Catalog candidates for the ResourceCurator (FR-21). Service-to-service only.
+      security:
+        - serviceAuth: []
+      responses:
+        '200':
+          description: Candidate resources.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResourceCatalogItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /internal/roadmap/{userId}/active-phase:
+    parameters:
+      - $ref: '#/components/parameters/UserIdPath'
+    get:
+      tags: [roadmap, internal]
+      operationId: getInternalActivePhase
+      summary: '[internal] Active phase for drill selection'
+      description: The user's active phase, focusing drill selection (FR-11). Service-to-service only.
+      security:
+        - serviceAuth: []
+      responses:
+        '200':
+          description: Active phase.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Phase'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /internal/roadmap/{userId}/summary:
+    parameters:
+      - $ref: '#/components/parameters/UserIdPath'
+    get:
+      tags: [roadmap, internal]
+      operationId: getInternalRoadmapSummary
+      summary: '[internal] Roadmap summary for RAG'
+      description: Roadmap summary for RAG and quick actions (FR-16, FR-17). Service-to-service only.
+      security:
+        - serviceAuth: []
+      responses:
+        '200':
+          description: Roadmap summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadmapSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================================================================
+  # SVC-PROG — progress
+  # ==================================================================
+  /api/progress/readiness:
+    get:
+      tags: [progress]
+      operationId: getReadiness
+      summary: Readiness snapshot
+      description: Readiness score, target, and weekly delta (FR-15).
+      responses:
+        '200':
+          description: Readiness snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/progress/trend:
+    get:
+      tags: [progress]
+      operationId: getTrend
+      summary: Readiness trend
+      description: Readiness trend points over time (FR-15).
+      responses:
+        '200':
+          description: Trend points.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trend'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/progress/history:
+    get:
+      tags: [progress]
+      operationId: getHistory
+      summary: Session history
+      description: Session history rows (FR-15).
+      responses:
+        '200':
+          description: Session records.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SessionRecord'
+              example:
+                - date: Jul 12
+                  kind: Mock loop · 4 rounds
+                  score: 3.2 / 5
+                  focus: System Design
+                - date: Jul 08
+                  kind: Daily drill
+                  score: 7 / 10
+                  focus: Concurrency
+                - date: Jul 05
+                  kind: Behavioral mock
+                  score: 3.6 / 5
+                  focus: Leadership Principles
+                - date: Jul 01
+                  kind: Daily drill
+                  score: 6 / 10
+                  focus: Edge cases
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /internal/progress/{userId}/recent-performance:
+    parameters:
+      - $ref: '#/components/parameters/UserIdPath'
+    get:
+      tags: [progress, internal]
+      operationId: getInternalRecentPerformance
+      summary: '[internal] Per-area scores for drill weighting'
+      description: Per-area recent performance scores used to weight drill selection (FR-11). Service-to-service only.
+      security:
+        - serviceAuth: []
+      responses:
+        '200':
+          description: Per-area scores.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    area:
+                      type: string
+                    score:
+                      type: number
+                  example:
+                    area: Concurrency
+                    score: 0.62
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /internal/progress/{userId}/summary:
+    parameters:
+      - $ref: '#/components/parameters/UserIdPath'
+    get:
+      tags: [progress, internal]
+      operationId: getInternalProgressSummary
+      summary: '[internal] Readiness summary for RAG'
+      description: Readiness summary for RAG (FR-16, FR-17). Service-to-service only.
+      security:
+        - serviceAuth: []
+      responses:
+        '200':
+          description: Readiness summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================================================================
+  # SVC-AI — ai-orchestrator
+  # ==================================================================
+  /api/chat/messages:
+    post:
+      tags: [ai]
+      operationId: sendChatMessage
+      summary: Send a chat message (SSE)
+      description: |
+        Sends a chat turn and streams the reply as Server-Sent Events, ending
+        with a quick-actions event (FR-16, FR-17).
+
+        Note: OpenAPI 3.0 cannot fully model token streaming — the response is
+        described as a single `text/event-stream` string; the `example` shows
+        the realistic multi-event shape (incremental `data:` chunks followed by
+        a terminal `quick-actions` event).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatMessageRequest'
+      responses:
+        '200':
+          description: SSE stream of response chunks and a final quick-actions event.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                event: message
+                data: {"delta":"Your readiness is 68 "}
+
+                event: message
+                data: {"delta":"and trending up +6 pts this week. "}
+
+                event: message
+                data: {"delta":"Focus next on concurrency and distributed-systems gaps."}
+
+                event: quick-actions
+                data: {"actions":[{"id":"start-drill","label":"Start today's drill"},{"id":"schedule-mock","label":"Schedule a mock"}]}
+
+                event: done
+                data: {"finishReason":"stop"}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/chat/history:
+    get:
+      tags: [ai]
+      operationId: getChatHistory
+      summary: Chat transcript
+      description: Recent chat transcript as JSON (FR-16).
+      responses:
+        '200':
+          description: Recent transcript.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatMessage'
+              example:
+                - role: user
+                  text: How am I doing?
+                  at: '2026-07-20T09:00:00Z'
+                - role: assistant
+                  text: Readiness 68, up +6 pts this week. Concurrency is your top gap.
+                  at: '2026-07-20T09:00:03Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /mcp:
+    post:
+      tags: [ai, internal]
+      operationId: mcpJsonRpc
+      summary: '[internal] MCP JSON-RPC endpoint'
+      description: |
+        MCP server endpoint exposing tools (readiness, gaps, roadmap,
+        start-drill, schedule-mock) to external MCP clients over JSON-RPC 2.0
+        (FR-18). This is **not REST** and is not fully modeled here — request
+        and response bodies are generic JSON-RPC envelopes. The gateway routes
+        `/mcp/*` in its own rate-limit bucket (ADR-007). See 20-ai-layer.md.
+
+        Authenticated with a user token by the external client (the `internal`
+        tag reflects that it is not part of the normal REST product surface).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: JSON-RPC 2.0 request envelope.
+              additionalProperties: true
+              example:
+                jsonrpc: '2.0'
+                id: 1
+                method: tools/call
+                params:
+                  name: readiness
+                  arguments: {}
+      responses:
+        '200':
+          description: JSON-RPC 2.0 response envelope.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: JSON-RPC 2.0 response envelope.
+                additionalProperties: true
+                example:
+                  jsonrpc: '2.0'
+                  id: 1
+                  result:
+                    readiness: 68
+                    target: 85
+                    delta: '+6 pts this week'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /internal/generate/questions:
+    post:
+      tags: [ai, internal]
+      operationId: generateQuestions
+      summary: '[internal] Generate a diagnostic question set'
+      description: Generates the diagnostic question set for SVC-ASSESS (FR-05). Service-to-service only.
+      security:
+        - serviceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateQuestionsRequest'
+      responses:
+        '200':
+          description: Generated questions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateQuestionsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /internal/generate/followup:
+    post:
+      tags: [ai, internal]
+      operationId: generateFollowup
+      summary: '[internal] Generate an adaptive mock follow-up'
+      description: Generates the adaptive mock follow-up question for SVC-ASSESS (FR-13). Service-to-service only.
+      security:
+        - serviceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateFollowupRequest'
+      responses:
+        '200':
+          description: Follow-up question.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewQuestion'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /internal/score/drill:
+    post:
+      tags: [ai, internal]
+      operationId: scoreDrill
+      summary: '[internal] Score a drill synchronously'
+      description: Synchronous drill scoring within ≤ 5 s for SVC-ASSESS (FR-12). Service-to-service only.
+      security:
+        - serviceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScoreDrillRequest'
+      responses:
+        '200':
+          description: Drill feedback.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DrillFeedback'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /internal/generate/phase:
+    post:
+      tags: [ai, internal]
+      operationId: generatePhase
+      summary: '[internal] Generate phase content from gaps'
+      description: Generates phase content from gaps; modules cite catalog resource ids (FR-09, FR-10, FR-21). Service-to-service only.
+      security:
+        - serviceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneratePhaseRequest'
+      responses:
+        '200':
+          description: Generated phase.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Phase'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /internal/curate/resource:
+    post:
+      tags: [ai, internal]
+      operationId: curateResource
+      summary: '[internal] Curate a catalog resource for a gap'
+      description: Picks a catalog resource for a gap/area, closed-world (FR-21, ADR-011). Service-to-service only.
+      security:
+        - serviceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CurateResourceRequest'
+      responses:
+        '200':
+          description: Chosen resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceCatalogItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /internal/audit/{auditRef}:
+    parameters:
+      - name: auditRef
+        in: path
+        required: true
+        schema:
+          type: string
+        description: AI audit record reference.
+    get:
+      tags: [ai, internal]
+      operationId: getAuditRecord
+      summary: '[internal] AI audit record'
+      description: Returns the AI audit record for a reference (NFR-10). Service/admin only.
+      security:
+        - serviceAuth: []
+      responses:
+        '200':
+          description: Audit record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================================================================
+  # SVC-NOTIF — notification (future)
+  # ==================================================================
+  /api/notifications/preferences:
+    get:
+      tags: [notification]
+      operationId: getNotificationPreferences
+      summary: Get notification preferences (future)
+      description: |
+        Channel and schedule preferences (FR-19). **Future** — SVC-NOTIF is not
+        yet implemented; documented here to fix the surface.
+      responses:
+        '200':
+          description: Preferences.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPreferences'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags: [notification]
+      operationId: updateNotificationPreferences
+      summary: Update notification preferences (future)
+      description: |
+        Update channel and schedule preferences (FR-19). **Future** — SVC-NOTIF
+        is not yet implemented; documented here to fix the surface.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationPreferences'
+      responses:
+        '200':
+          description: Updated preferences.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPreferences'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Access token (JWT) issued by SVC-ID. Resources scoped to `jwt.sub`;
+        self resources carry no user id in the path.
+    serviceAuth:
+      type: apiKey
+      in: header
+      name: X-Service-Auth
+      description: |
+        Service-to-service authentication for `/internal/**`. Modeled as an
+        API-key header for OpenAPI 3.0, but is realized as mTLS (client
+        credentials) plus a propagated end-user JWT (22-security.md).
+
+  parameters:
+    UserIdPath:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Target user id (JWT subject).
+    TodoIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: TODO identifier.
+    SessionIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Session identifier.
+    ModuleIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Roadmap module identifier.
+    ResourceIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Catalog resource identifier.
+
+  headers:
+    RetryAfter:
+      description: Seconds the client should wait before retrying.
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+
+  responses:
+    BadRequest:
+      description: Malformed request.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: Missing or invalid credentials.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://api.ascendra.example/problems/unauthorized
+            title: Unauthorized
+            status: 401
+            detail: A valid bearer token is required.
+            instance: /api/profile
+    Forbidden:
+      description: Authenticated but not permitted.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Resource not found.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: Conflicting state.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unprocessable:
+      description: Validation failed.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://api.ascendra.example/problems/validation
+            title: Unprocessable Entity
+            status: 422
+            detail: One or more fields failed validation.
+            instance: /api/todos
+    PayloadTooLarge:
+      description: Upload exceeds the 10 MB limit.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    RateLimited:
+      description: Rate limit exceeded.
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://api.ascendra.example/problems/rate-limited
+            title: Too Many Requests
+            status: 429
+            detail: Rate limit exceeded; retry after the indicated delay.
+            instance: /api/chat/messages
+    ServerError:
+      description: Unexpected server error.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+  schemas:
+    Problem:
+      type: object
+      description: RFC 9457 problem detail (application/problem+json).
+      properties:
+        type:
+          type: string
+          format: uri
+          default: about:blank
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+      example:
+        type: https://api.ascendra.example/problems/not-found
+        title: Not Found
+        status: 404
+        detail: The requested resource does not exist.
+        instance: /api/mocks/mock-404
+
+    QuestionLevel:
+      type: string
+      enum: [Beginner, Intermediate, Advanced]
+
+    AuthTokens:
+      type: object
+      required: [accessToken, refreshToken, tokenType, expiresIn]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        tokenType:
+          type: string
+          default: Bearer
+        expiresIn:
+          type: integer
+          description: Access token lifetime in seconds.
+      example:
+        accessToken: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.mock.access
+        refreshToken: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.mock.refresh
+        tokenType: Bearer
+        expiresIn: 3600
+
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+      example:
+        name: Alex Rivera
+        email: alex@ascendra.example
+        password: str0ngpass
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+      example:
+        email: demo@ascendra.example
+        password: demopass
+
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+      example:
+        refreshToken: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.mock.refresh
+
+    Me:
+      type: object
+      required: [userId, email, tier]
+      properties:
+        userId:
+          type: string
+        email:
+          type: string
+          format: email
+        tier:
+          type: string
+          enum: [free, pro]
+      example:
+        userId: usr-8f31
+        email: demo@ascendra.example
+        tier: pro
+
+    Entitlements:
+      type: object
+      required: [userId, tier]
+      properties:
+        userId:
+          type: string
+        tier:
+          type: string
+          enum: [free, pro]
+        limits:
+          type: object
+          properties:
+            dailyDrills:
+              type: integer
+            monthlyMocks:
+              type: integer
+            aiTokenBudget:
+              type: integer
+      example:
+        userId: usr-8f31
+        tier: pro
+        limits:
+          dailyDrills: 10
+          monthlyMocks: 20
+          aiTokenBudget: 500000
+
+    EntitlementsUpdate:
+      type: object
+      required: [tier]
+      properties:
+        tier:
+          type: string
+          enum: [free, pro]
+      example:
+        tier: pro
+
+    Competency:
+      type: object
+      required: [name, level, target]
+      properties:
+        name:
+          type: string
+        level:
+          type: integer
+        target:
+          type: integer
+      example:
+        name: System Design
+        level: 54
+        target: 80
+
+    GapTag:
+      type: object
+      required: [label, res, url]
+      properties:
+        label:
+          type: string
+        res:
+          type: string
+        url:
+          type: string
+          format: uri
+      example:
+        label: Concurrency
+        res: Jenkov concurrency course
+        url: https://jenkov.com/tutorials/java-concurrency/index.html
+
+    Profile:
+      type: object
+      required: [readiness, target, delta, comps, weak, gapTags]
+      properties:
+        readiness:
+          type: integer
+        target:
+          type: integer
+        delta:
+          type: string
+        plan:
+          type: string
+          description: Plan display label.
+        comps:
+          type: array
+          items:
+            $ref: '#/components/schemas/Competency'
+        weak:
+          type: array
+          items:
+            type: string
+        gapTags:
+          type: array
+          items:
+            $ref: '#/components/schemas/GapTag'
+      example:
+        readiness: 68
+        target: 85
+        delta: '+6 pts this week'
+        plan: Pro
+        comps:
+          - { name: 'Coding & DSA', level: 72, target: 85 }
+          - { name: 'Test Strategy & Automation', level: 63, target: 88 }
+          - { name: 'System Design', level: 54, target: 80 }
+          - { name: 'CS Fundamentals', level: 66, target: 78 }
+          - { name: 'Behavioral & Communication', level: 70, target: 82 }
+        weak:
+          - Concurrency & thread safety
+          - Distributed system trade-offs
+          - STAR structure in behavioral answers
+          - Test design for edge cases
+        gapTags:
+          - { label: 'Distributed systems', res: 'System Design Primer', url: 'https://github.com/donnemartin/system-design-primer' }
+          - { label: 'System design depth', res: 'ByteByteGo guides', url: 'https://bytebytego.com' }
+          - { label: 'Concurrency', res: 'Jenkov concurrency course', url: 'https://jenkov.com/tutorials/java-concurrency/index.html' }
+          - { label: 'Scale-testing', res: 'Grafana k6 docs', url: 'https://grafana.com/docs/k6/latest/' }
+          - { label: 'Behavioral depth', res: 'Tech Interview Handbook', url: 'https://www.techinterviewhandbook.org/behavioral-interview/' }
+
+    ProfileUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        targetRole:
+          type: string
+      example:
+        name: Alex Rivera
+        targetRole: Senior SDET
+
+    ResumeAccepted:
+      type: object
+      required: [resumeId, status]
+      properties:
+        resumeId:
+          type: string
+        status:
+          type: string
+          enum: [parsing]
+      example:
+        resumeId: rsm-2f9a
+        status: parsing
+
+    ResumeStatus:
+      type: object
+      required: [resumeId, status]
+      properties:
+        resumeId:
+          type: string
+        status:
+          type: string
+          enum: [scanning, parsing, parsed, failed]
+        updatedAt:
+          type: string
+          format: date-time
+      example:
+        resumeId: rsm-2f9a
+        status: parsed
+        updatedAt: '2026-07-20T08:45:00Z'
+
+    SkillInventory:
+      type: object
+      properties:
+        targetRole:
+          type: string
+        skills:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              area:
+                type: string
+              confidence:
+                type: number
+      example:
+        targetRole: Senior SDET
+        skills:
+          - { name: Playwright, area: Automation, confidence: 0.8 }
+          - { name: Java concurrency, area: Concurrency, confidence: 0.55 }
+          - { name: Distributed systems, area: System Design, confidence: 0.4 }
+
+    Notes:
+      type: object
+      required: [text, updatedAt]
+      properties:
+        text:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+      example:
+        text: 'Review STAR structure before Friday mock. Re-read k6 docs.'
+        updatedAt: '2026-07-20T09:12:00Z'
+
+    NotesUpdate:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+      example:
+        text: 'Review STAR structure before Friday mock. Re-read k6 docs.'
+
+    TodoItem:
+      type: object
+      required: [id, text, done]
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+        done:
+          type: boolean
+      example:
+        id: td-1
+        text: Finish Phase 2 concurrency module
+        done: false
+
+    TodoCreate:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+      example:
+        text: Book a system-design mock
+
+    PrivacyExportStatus:
+      type: object
+      required: [exportId, status]
+      properties:
+        exportId:
+          type: string
+        status:
+          type: string
+          enum: [preparing, ready, failed]
+        downloadUrl:
+          type: string
+          format: uri
+      example:
+        exportId: exp-71c2
+        status: preparing
+
+    ErasureAccepted:
+      type: object
+      required: [erasureId, status]
+      properties:
+        erasureId:
+          type: string
+        status:
+          type: string
+          enum: [pending]
+      example:
+        erasureId: ers-4b8e
+        status: pending
+
+    ErasureStatus:
+      type: object
+      required: [erasureId, status]
+      properties:
+        erasureId:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, completed, failed]
+        deadline:
+          type: string
+          format: date-time
+        acks:
+          type: object
+          additionalProperties:
+            type: string
+            format: date-time
+          description: Map of service id to ack timestamp.
+      example:
+        erasureId: ers-4b8e
+        status: in_progress
+        deadline: '2026-08-19T00:00:00Z'
+        acks:
+          SVC-PROF: '2026-07-20T09:20:00Z'
+          SVC-ASSESS: '2026-07-20T09:21:00Z'
+
+    DiagnosticQuestion:
+      type: object
+      required: [area, level, q]
+      properties:
+        area:
+          type: string
+        level:
+          $ref: '#/components/schemas/QuestionLevel'
+        q:
+          type: string
+      example:
+        area: Concurrency
+        level: Beginner
+        q: What is a race condition? Give a concrete example.
+
+    DiagnosticSession:
+      type: object
+      required: [sessionId, state, diagIdx, questions]
+      properties:
+        sessionId:
+          type: string
+        state:
+          type: string
+          enum: [in_progress, scoring, scored, abandoned]
+        diagIdx:
+          type: integer
+          description: Resume position — the current question index.
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiagnosticQuestion'
+      example:
+        sessionId: diag-1a2b
+        state: in_progress
+        diagIdx: 3
+        questions:
+          - { area: Automation, level: Beginner, q: 'Design a page-object model for a flaky checkout flow.' }
+          - { area: Automation, level: Intermediate, q: 'How do you structure an automation framework for parallel execution?' }
+          - { area: Concurrency, level: Beginner, q: 'What is a race condition? Give a concrete example.' }
+          - { area: 'Coding & DSA', level: Intermediate, q: 'Implement a sliding-window rate counter; discuss complexity.' }
+
+    DiagnosticAnswer:
+      type: object
+      required: [answer]
+      properties:
+        answer:
+          type: string
+      example:
+        answer: A race condition happens when two threads access shared state without synchronization...
+
+    ScoringAccepted:
+      type: object
+      required: [sessionId, state]
+      properties:
+        sessionId:
+          type: string
+        state:
+          type: string
+          enum: [scoring]
+        pollUrl:
+          type: string
+          description: Where to poll for the scored result.
+      example:
+        sessionId: mock-9f2c
+        state: scoring
+        pollUrl: /api/mocks/mock-9f2c
+
+    GapReport:
+      type: object
+      required: [competencies, strengths, priorityGaps]
+      properties:
+        competencies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Competency'
+        strengths:
+          type: array
+          items:
+            type: string
+        priorityGaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/GapItem'
+        etaWeeks:
+          type: integer
+      example:
+        competencies:
+          - { name: 'System Design', level: 54, target: 80 }
+          - { name: 'Test Strategy & Automation', level: 63, target: 88 }
+        strengths:
+          - 'Coding & DSA'
+          - 'Behavioral & Communication'
+        priorityGaps:
+          - { short: 'Rate-limiter partitions', long: 'Rate-limiter correctness under network partitions', res: 'System Design Primer', url: 'https://github.com/donnemartin/system-design-primer' }
+        etaWeeks: 14
+
+    DrillQuestion:
+      type: object
+      required: [area, q]
+      properties:
+        area:
+          type: string
+        q:
+          type: string
+      example:
+        area: Concurrency
+        q: What is a race condition? Give a concrete example and describe a test that reliably catches it.
+
+    DrillSet:
+      type: object
+      required: [position, questions]
+      properties:
+        position:
+          type: integer
+          description: Resume position within today's drill set.
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/DrillQuestion'
+      example:
+        position: 0
+        questions:
+          - { area: 'Test Strategy', q: 'Design a test strategy for a payment service handling 50k requests/second. What layers matter most?' }
+          - { area: 'Concurrency', q: 'What is a race condition? Give a concrete example and describe a test that reliably catches it.' }
+          - { area: 'System Design', q: 'How would you verify correctness of a distributed rate limiter under network partitions?' }
+
+    DrillAnswer:
+      type: object
+      required: [area, q, answer]
+      properties:
+        area:
+          type: string
+        q:
+          type: string
+        answer:
+          type: string
+      example:
+        area: Concurrency
+        q: What is a race condition?
+        answer: Two threads read-modify-write shared state without a lock...
+
+    DrillFeedback:
+      type: object
+      required: [score, strong, improve]
+      properties:
+        score:
+          type: integer
+          minimum: 0
+          maximum: 10
+          description: Score out of 10.
+        strong:
+          type: array
+          items:
+            type: string
+          description: Strong points.
+        improve:
+          type: array
+          items:
+            type: string
+          description: Areas to improve.
+      example:
+        score: 7
+        strong:
+          - Correctly identified the shared-state hazard
+          - Named a concrete synchronization primitive
+        improve:
+          - Describe a test that reliably reproduces the race
+          - Mention memory-visibility guarantees
+
+    InterviewQuestion:
+      type: object
+      required: [area, level, q]
+      properties:
+        area:
+          type: string
+        level:
+          $ref: '#/components/schemas/QuestionLevel'
+        q:
+          type: string
+      example:
+        area: System Design
+        level: Advanced
+        q: Walk me through testing a distributed rate limiter. Where does it break under network partitions?
+
+    MockSession:
+      type: object
+      required: [sessionId, state, question]
+      properties:
+        sessionId:
+          type: string
+        state:
+          type: string
+          enum: [in_progress, scoring, scored, abandoned]
+        levelFilter:
+          $ref: '#/components/schemas/QuestionLevel'
+        question:
+          $ref: '#/components/schemas/InterviewQuestion'
+        score:
+          $ref: '#/components/schemas/MockScore'
+      example:
+        sessionId: mock-9f2c
+        state: in_progress
+        levelFilter: Advanced
+        question:
+          area: System Design
+          level: Advanced
+          q: Walk me through testing a distributed rate limiter. Where does it break under network partitions?
+
+    MockAnswer:
+      type: object
+      required: [answer]
+      properties:
+        answer:
+          type: string
+      example:
+        answer: I'd start with a partition-tolerance test that isolates the counter shard...
+
+    MockScore:
+      type: object
+      required: [overall, perArea]
+      properties:
+        overall:
+          type: string
+          description: Overall score, e.g. "3.2 / 5".
+        perArea:
+          type: array
+          items:
+            type: object
+            properties:
+              area:
+                type: string
+              note:
+                type: string
+        surfacedGaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/GapItem'
+      example:
+        overall: 3.2 / 5
+        perArea:
+          - { area: System Design, note: 'Strong on partitioning, light on failure modes.' }
+        surfacedGaps:
+          - { short: 'Rate-limiter partitions', long: 'Rate-limiter correctness under network partitions', res: 'System Design Primer', url: 'https://github.com/donnemartin/system-design-primer' }
+
+    CodingTestConfig:
+      type: object
+      description: Coding test config; all fields optional — defaults random / 5 / mixed.
+      properties:
+        difficulty:
+          type: string
+          enum: [random, Beginner, Intermediate, Advanced]
+          default: random
+        count:
+          type: integer
+          default: 5
+        area:
+          type: string
+          default: mixed
+      example:
+        difficulty: Intermediate
+        count: 5
+        area: mixed
+
+    CodingQuestion:
+      type: object
+      required: [area, level, q]
+      properties:
+        area:
+          type: string
+        level:
+          $ref: '#/components/schemas/QuestionLevel'
+        q:
+          type: string
+      example:
+        area: Concurrency
+        level: Intermediate
+        q: Implement a thread-safe bounded blocking queue.
+
+    CodingSolution:
+      type: object
+      required: [solution]
+      properties:
+        solution:
+          type: string
+          description: Solution source text, stored verbatim.
+      example:
+        solution: |
+          class BoundedQueue<T> { /* ... */ }
+
+    CodingTestResult:
+      type: object
+      required: [solved, total]
+      properties:
+        solved:
+          type: integer
+        total:
+          type: integer
+        weakArea:
+          type: string
+        gap:
+          type: string
+        res:
+          type: string
+        url:
+          type: string
+          format: uri
+      example:
+        solved: 3
+        total: 5
+        weakArea: Concurrency
+        gap: Thread-safety under contention
+        res: LeetCode — Concurrency problems
+        url: https://leetcode.com/tag/concurrency/
+
+    CodingTest:
+      type: object
+      required: [sessionId, state]
+      properties:
+        sessionId:
+          type: string
+        state:
+          type: string
+          enum: [in_progress, scoring, scored, abandoned]
+        config:
+          $ref: '#/components/schemas/CodingTestConfig'
+        question:
+          $ref: '#/components/schemas/CodingQuestion'
+        result:
+          $ref: '#/components/schemas/CodingTestResult'
+      example:
+        sessionId: code-3d7f
+        state: in_progress
+        config: { difficulty: Intermediate, count: 5, area: mixed }
+        question:
+          area: Data Structures
+          level: Intermediate
+          q: Design an LRU cache with O(1) get and put.
+
+    Roadmap:
+      type: object
+      required: [phases]
+      properties:
+        phases:
+          type: array
+          items:
+            $ref: '#/components/schemas/Phase'
+      example:
+        phases:
+          - name: 'Phase 1 · Foundations'
+            weeks: 'Weeks 1–3'
+            status: Complete
+            state: done
+            modules:
+              - { name: 'DSA refresher', res: 'LeetCode Explore', url: 'https://leetcode.com/explore/' }
+              - { name: 'Language & tooling baseline', res: 'Exercism tracks', url: 'https://exercism.org' }
+              - { name: 'Resume-mapped diagnostic test', res: 'Grind 75 plan', url: 'https://www.techinterviewhandbook.org/grind75' }
+          - name: 'Phase 2 · Test Engineering Depth'
+            weeks: 'Weeks 4–7'
+            status: In progress
+            state: active
+            modules:
+              - { name: 'Test strategy & the test pyramid', res: 'Martin Fowler — Test Pyramid', url: 'https://martinfowler.com/articles/practical-test-pyramid.html' }
+              - { name: 'Automation framework design', res: 'Playwright best practices', url: 'https://playwright.dev/docs/best-practices' }
+              - { name: 'Concurrency & flaky-test debugging', res: 'Jenkov concurrency course', url: 'https://jenkov.com/tutorials/java-concurrency/index.html' }
+          - name: 'Phase 3 · Distributed Systems & Design'
+            weeks: 'Weeks 8–11'
+            status: Upcoming
+            state: next
+            modules:
+              - { name: 'Distributed testing at scale', res: 'Grafana k6 docs', url: 'https://grafana.com/docs/k6/latest/' }
+              - { name: 'Design for testability', res: 'Google SWE Book — Testing', url: 'https://abseil.io/resources/swe-book/html/ch11.html' }
+              - { name: 'Observability & fault injection', res: 'Principles of Chaos', url: 'https://principlesofchaos.org' }
+          - name: 'Phase 4 · Interview Simulation'
+            weeks: 'Weeks 12–14'
+            status: Upcoming
+            state: next
+            modules:
+              - { name: 'Behavioral leadership loop', res: 'Tech Interview Handbook', url: 'https://www.techinterviewhandbook.org/behavioral-interview/' }
+              - { name: 'Full mock loop ×3', res: 'Pramp peer mocks', url: 'https://www.pramp.com' }
+              - { name: 'Readiness gate ≥ 85', res: 'interviewing.io', url: 'https://interviewing.io' }
+
+    Phase:
+      type: object
+      required: [name, weeks, status, state, modules]
+      properties:
+        name:
+          type: string
+        weeks:
+          type: string
+        status:
+          type: string
+        state:
+          type: string
+          enum: [done, active, next]
+        modules:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhaseModule'
+      example:
+        name: 'Phase 5 · Post-mock reinforcement'
+        weeks: 'Weeks 15–16'
+        status: New
+        state: active
+        modules:
+          - { name: 'Distributed rate-limiter deep dive', res: 'System Design Primer', url: 'https://github.com/donnemartin/system-design-primer' }
+          - { name: 'Fault-injection testing lab', res: 'Principles of Chaos', url: 'https://principlesofchaos.org' }
+          - { name: 'Targeted follow-up mock on weak areas', res: 'Pramp peer mocks', url: 'https://www.pramp.com' }
+
+    PhaseModule:
+      type: object
+      required: [name, res, url]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        res:
+          type: string
+        url:
+          type: string
+          format: uri
+        state:
+          type: string
+          enum: [done, active, next]
+      example:
+        id: mod-2a
+        name: Concurrency & flaky-test debugging
+        res: Jenkov concurrency course
+        url: https://jenkov.com/tutorials/java-concurrency/index.html
+        state: active
+
+    ModuleStateUpdate:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: string
+          enum: [done, active, next]
+      example:
+        state: done
+
+    GapItem:
+      type: object
+      required: [short, long, res, url]
+      properties:
+        short:
+          type: string
+        long:
+          type: string
+        res:
+          type: string
+        url:
+          type: string
+          format: uri
+      example:
+        short: Rate-limiter partitions
+        long: Rate-limiter correctness under network partitions
+        res: System Design Primer
+        url: https://github.com/donnemartin/system-design-primer
+
+    ResourceCatalogItem:
+      type: object
+      required: [id, title, url, active]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+        area:
+          type: string
+        active:
+          type: boolean
+      example:
+        id: res-sdp
+        title: System Design Primer
+        url: https://github.com/donnemartin/system-design-primer
+        area: System Design
+        active: true
+
+    ResourceCatalogUpsert:
+      type: object
+      required: [title, url]
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+        area:
+          type: string
+        active:
+          type: boolean
+          default: true
+      example:
+        title: System Design Primer
+        url: https://github.com/donnemartin/system-design-primer
+        area: System Design
+        active: true
+
+    Readiness:
+      type: object
+      required: [readiness, target, delta]
+      properties:
+        readiness:
+          type: integer
+        target:
+          type: integer
+        delta:
+          type: string
+      example:
+        readiness: 68
+        target: 85
+        delta: '+6 pts this week'
+
+    TrendPoint:
+      type: object
+      required: [month, value]
+      properties:
+        month:
+          type: string
+        value:
+          type: integer
+      example:
+        month: Jul
+        value: 68
+
+    Trend:
+      type: object
+      required: [points]
+      properties:
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrendPoint'
+      example:
+        points:
+          - { month: Mar, value: 22 }
+          - { month: Apr, value: 31 }
+          - { month: May, value: 44 }
+          - { month: Jun, value: 58 }
+          - { month: Jul, value: 68 }
+
+    SessionRecord:
+      type: object
+      required: [date, kind, score, focus]
+      properties:
+        date:
+          type: string
+        kind:
+          type: string
+        score:
+          type: string
+        focus:
+          type: string
+      example:
+        date: Jul 12
+        kind: Mock loop · 4 rounds
+        score: 3.2 / 5
+        focus: System Design
+
+    ChatMessageRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        context:
+          type: string
+          description: Optional client-side context hint (e.g. current screen).
+      example:
+        message: How am I doing and what should I focus on?
+        context: dashboard
+
+    ChatMessage:
+      type: object
+      required: [role, text]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        text:
+          type: string
+        at:
+          type: string
+          format: date-time
+      example:
+        role: assistant
+        text: Readiness 68, up +6 pts this week. Concurrency is your top gap.
+        at: '2026-07-20T09:00:03Z'
+
+    GenerateQuestionsRequest:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: string
+        targetRole:
+          type: string
+        count:
+          type: integer
+          default: 50
+        skills:
+          type: array
+          items:
+            type: string
+      example:
+        userId: usr-8f31
+        targetRole: Senior SDET
+        count: 50
+        skills: [Playwright, Java concurrency, Distributed systems]
+
+    GenerateQuestionsResponse:
+      type: object
+      required: [questions, auditRef]
+      properties:
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiagnosticQuestion'
+        auditRef:
+          type: string
+      example:
+        auditRef: aud-71b0
+        questions:
+          - { area: Automation, level: Beginner, q: 'Design a page-object model for a flaky checkout flow.' }
+          - { area: Concurrency, level: Beginner, q: 'What is a race condition? Give a concrete example.' }
+
+    GenerateFollowupRequest:
+      type: object
+      required: [sessionId, lastAnswer]
+      properties:
+        sessionId:
+          type: string
+        area:
+          type: string
+        level:
+          $ref: '#/components/schemas/QuestionLevel'
+        lastAnswer:
+          type: string
+      example:
+        sessionId: mock-9f2c
+        area: System Design
+        level: Advanced
+        lastAnswer: I would isolate the shard and inject a partition...
+
+    ScoreDrillRequest:
+      type: object
+      required: [area, q, answer]
+      properties:
+        area:
+          type: string
+        q:
+          type: string
+        answer:
+          type: string
+      example:
+        area: Concurrency
+        q: What is a race condition?
+        answer: Two threads read-modify-write shared state without a lock...
+
+    GeneratePhaseRequest:
+      type: object
+      required: [userId, gaps]
+      properties:
+        userId:
+          type: string
+        gaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/GapItem'
+        resourceIds:
+          type: array
+          items:
+            type: string
+      example:
+        userId: usr-8f31
+        gaps:
+          - { short: 'Rate-limiter partitions', long: 'Rate-limiter correctness under network partitions', res: 'System Design Primer', url: 'https://github.com/donnemartin/system-design-primer' }
+        resourceIds: [res-sdp, res-chaos]
+
+    CurateResourceRequest:
+      type: object
+      required: [area]
+      properties:
+        area:
+          type: string
+        gap:
+          type: string
+      example:
+        area: Concurrency
+        gap: Thread-safety under contention
+
+    AuditRecord:
+      type: object
+      required: [auditRef, taskType, model, createdAt]
+      properties:
+        auditRef:
+          type: string
+        taskType:
+          type: string
+          description: e.g. diagnostic-scoring, mock-scoring, coding-scoring, resume-extraction.
+        model:
+          type: string
+        promptHash:
+          type: string
+        tokensIn:
+          type: integer
+        tokensOut:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      example:
+        auditRef: aud-71b0
+        taskType: mock-scoring
+        model: gpt-4o-mini
+        promptHash: sha256:9a1f...
+        tokensIn: 2100
+        tokensOut: 640
+        createdAt: '2026-07-20T09:02:00Z'
+
+    NotificationPreferences:
+      type: object
+      properties:
+        channels:
+          type: array
+          items:
+            type: string
+            enum: [email, push, inapp]
+        schedule:
+          type: string
+          description: e.g. daily-9am, weekdays-only.
+        enabled:
+          type: boolean
+      example:
+        channels: [email, inapp]
+        schedule: weekdays-9am
+        enabled: true
+
+    RoadmapSummary:
+      type: object
+      properties:
+        activePhase:
+          type: string
+        completedPhases:
+          type: integer
+        totalPhases:
+          type: integer
+        nextModule:
+          type: string
+      example:
+        activePhase: 'Phase 2 · Test Engineering Depth'
+        completedPhases: 1
+        totalPhases: 4
+        nextModule: Concurrency & flaky-test debugging

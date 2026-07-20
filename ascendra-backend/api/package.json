@@ -1,0 +1,18 @@
+{
+  "name": "ascendra-api-contract",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Executable, contract-first OpenAPI 3.0.3 surface for the Ascendra backend gateway. Realizes .claude/hld/25-api-contracts.md.",
+  "scripts": {
+    "lint": "redocly lint openapi.yaml",
+    "bundle": "redocly bundle openapi.yaml -o dist/openapi.bundled.yaml",
+    "mock": "prism mock openapi.yaml -p 4010 -h 127.0.0.1",
+    "docs": "node serve.mjs",
+    "docs:redoc": "redocly preview-docs openapi.yaml -p 8089"
+  },
+  "devDependencies": {
+    "@redocly/cli": "^1.34.2",
+    "@stoplight/prism-cli": "^5.14.2",
+    "swagger-ui-dist": "^5.20.0"
+  }
+}

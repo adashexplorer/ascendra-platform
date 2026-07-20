@@ -8,6 +8,15 @@ request/response schemas** — this document fixes the surface and naming so the
 per-service specs can't drift apart, and is updated whenever a service doc
 changes its API table.
 
+> **Machine-readable contract**: a consolidated, executable OpenAPI 3.0.3
+> realization of this table lives at
+> [`ascendra-backend/api/openapi.yaml`](../../ascendra-backend/api/openapi.yaml)
+> (65 operations, one per row below). It ships a Prism mock + Swagger UI —
+> `cd ascendra-backend/api && npm install && npm run mock` (mock on :4010),
+> `npm run docs` (Swagger UI on :8088). It is contract-first tooling; springdoc
+> per running service remains the eventual generated truth. Keep it in step when
+> editing this table.
+
 Conventions:
 
 - All external paths are behind SVC-GW under `/api/**` (MCP under `/mcp`);
